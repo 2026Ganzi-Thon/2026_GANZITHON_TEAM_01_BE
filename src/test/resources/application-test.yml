@@ -3,3 +3,6 @@ spring:
     url: ${SOM_TEST_DB_URL}
     username: ${SOM_DB_USER}
     password: ${SOM_DB_PASSWORD}
+    hikari:
+      # 캐시된 테스트 컨텍스트마다 풀이 남으므로 작게 둔다(DB 역할의 동시 접속 상한 초과 방지)
+      maximum-pool-size: 2

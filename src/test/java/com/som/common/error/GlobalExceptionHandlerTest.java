@@ -2,6 +2,7 @@ package com.som.common.error;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.aMapWithSize;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -14,6 +15,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
@@ -23,6 +25,7 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
+@WithMockUser
 class GlobalExceptionHandlerTest {
 
     @Autowired
@@ -51,7 +54,7 @@ class GlobalExceptionHandlerTest {
     }
 
     private MockHttpServletRequestBuilder json(MockHttpServletRequestBuilder builder, String body) {
-        return builder.contentType(MediaType.APPLICATION_JSON).content(body);
+        return builder.with(csrf()).contentType(MediaType.APPLICATION_JSON).content(body);
     }
 
     @Test
@@ -67,7 +70,8 @@ class GlobalExceptionHandlerTest {
         assertThat(ErrorCode.RATE_LIMITED.status().value()).isEqualTo(429);
         assertThat(ErrorCode.INTERNAL_ERROR.status().value()).isEqualTo(500);
         assertThat(ErrorCode.ENGINE_UNAVAILABLE.status().value()).isEqualTo(503);
-        assertThat(ErrorCode.values()).hasSize(11);
+        assertThat(ErrorCode.CSRF_INVALID.status().value()).isEqualTo(403);
+        assertThat(ErrorCode.values()).hasSize(12);
         for (ErrorCode code : ErrorCode.values()) {
             assertThat(code.defaultMessage()).isNotBlank();
         }
@@ -174,6 +178,6 @@ class GlobalExceptionHandlerTest {
 
     @Test
     void 잘못된_메서드는_405_METHOD_NOT_ALLOWED() throws Exception {
-        expectError(delete("/test/errors/api"), 405, ErrorCode.METHOD_NOT_ALLOWED);
+        expectError(delete("/test/errors/api").with(csrf()), 405, ErrorCode.METHOD_NOT_ALLOWED);
     }
 }
