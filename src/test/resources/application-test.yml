@@ -1,0 +1,5 @@
+spring:
+  datasource:
+    url: ${SOM_TEST_DB_URL}
+    username: ${SOM_DB_USER}
+    password: ${SOM_DB_PASSWORD}

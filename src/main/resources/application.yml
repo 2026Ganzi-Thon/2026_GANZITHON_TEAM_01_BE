@@ -1,0 +1,16 @@
+spring:
+  application:
+    name: som
+  config:
+    import: optional:file:.env[.properties]
+  datasource:
+    url: ${SOM_DB_URL}
+    username: ${SOM_DB_USER}
+    password: ${SOM_DB_PASSWORD}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
