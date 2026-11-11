@@ -24,6 +24,14 @@ server:
         secure: true
         same-site: lax
 
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+    enabled: ${SOM_API_DOCS_ENABLED:true}
+  swagger-ui:
+    enabled: ${SOM_API_DOCS_ENABLED:true}
+  paths-to-match: /api/**   # 공개 API만 문서화 (테스트 전용 /test/** 등 제외)
+
 som:
   time:
     zone: Asia/Seoul
