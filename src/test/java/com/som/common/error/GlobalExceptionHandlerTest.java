@@ -109,6 +109,27 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
+    void DTO에_없는_userId_필드는_400_VALIDATION_ERROR이고_값을_노출하지_않는다() throws Exception {
+        String body = expectError(json(post("/test/errors/mood"), "{\"mood\":\"CALM\",\"userId\":999}"),
+                400, ErrorCode.VALIDATION_ERROR);
+        assertThat(body).contains("userId").doesNotContain("999");
+    }
+
+    @Test
+    void 안_보는_것_필드는_400_VALIDATION_ERROR이고_값을_노출하지_않는다() throws Exception {
+        String body = expectError(json(post("/test/errors/mood"), "{\"mood\":\"CALM\",\"title\":\"secret-meeting\"}"),
+                400, ErrorCode.VALIDATION_ERROR);
+        assertThat(body).contains("title").doesNotContain("secret-meeting");
+    }
+
+    @Test
+    void DTO_필드만_보내면_정상_처리된다() throws Exception {
+        mockMvc.perform(json(post("/test/errors/mood"), "{\"mood\":\"CALM\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.mood").value("CALM"));
+    }
+
+    @Test
     void 메서드_파라미터_검증_실패는_400_VALIDATION_ERROR이고_거부값을_노출하지_않는다() throws Exception {
         String body = expectError(get("/test/errors/param").param("name", "toolong-value"),
                 400, ErrorCode.VALIDATION_ERROR);

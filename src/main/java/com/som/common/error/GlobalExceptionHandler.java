@@ -2,6 +2,7 @@ package com.som.common.error;
 
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.exc.InvalidFormatException;
+import com.fasterxml.jackson.databind.exc.UnrecognizedPropertyException;
 import com.som.common.web.RequestIds;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolation;
@@ -41,6 +42,7 @@ public class GlobalExceptionHandler {
 
     private static final String INVALID_FORMAT_REASON = "형식이 올바르지 않습니다";
     private static final String MISSING_REASON = "값이 필요합니다";
+    private static final String UNKNOWN_FIELD_REASON = "허용되지 않는 필드입니다";
 
     @ExceptionHandler(ApiException.class)
     ResponseEntity<ErrorResponse> handleApi(ApiException ex, HttpServletRequest request) {
@@ -85,6 +87,10 @@ public class GlobalExceptionHandler {
     ResponseEntity<ErrorResponse> handleNotReadable(HttpMessageNotReadableException ex, HttpServletRequest request) {
         if (ex.getCause() instanceof InvalidFormatException invalid) {
             return validation(Stream.of(fieldPath(invalid) + ": " + INVALID_FORMAT_REASON), request);
+        }
+        if (ex.getCause() instanceof UnrecognizedPropertyException unknown) {
+            // 필드 이름만 쓰고 값은 쓰지 않는다('안 보는 것' 원문 노출 방지)
+            return validation(Stream.of(fieldPath(unknown) + ": " + UNKNOWN_FIELD_REASON), request);
         }
         return respond(ErrorCode.MALFORMED_REQUEST, ErrorCode.MALFORMED_REQUEST.defaultMessage(), request);
     }
