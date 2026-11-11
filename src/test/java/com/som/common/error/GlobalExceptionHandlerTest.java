@@ -71,7 +71,8 @@ class GlobalExceptionHandlerTest {
         assertThat(ErrorCode.INTERNAL_ERROR.status().value()).isEqualTo(500);
         assertThat(ErrorCode.ENGINE_UNAVAILABLE.status().value()).isEqualTo(503);
         assertThat(ErrorCode.CSRF_INVALID.status().value()).isEqualTo(403);
-        assertThat(ErrorCode.values()).hasSize(12);
+        assertThat(ErrorCode.UNSUPPORTED_MEDIA_TYPE.status().value()).isEqualTo(415);
+        assertThat(ErrorCode.values()).hasSize(13);
         for (ErrorCode code : ErrorCode.values()) {
             assertThat(code.defaultMessage()).isNotBlank();
         }
@@ -179,5 +180,24 @@ class GlobalExceptionHandlerTest {
     @Test
     void 잘못된_메서드는_405_METHOD_NOT_ALLOWED() throws Exception {
         expectError(delete("/test/errors/api").with(csrf()), 405, ErrorCode.METHOD_NOT_ALLOWED);
+    }
+
+    @Test
+    void 지원하지_않는_ContentType은_415_UNSUPPORTED_MEDIA_TYPE이고_500이_아니다() throws Exception {
+        String body = expectError(post("/test/errors/mood").with(csrf())
+                .contentType(MediaType.TEXT_PLAIN).content("secret-plain-body"), 415, ErrorCode.UNSUPPORTED_MEDIA_TYPE);
+        assertThat(body).doesNotContain("secret-plain-body").doesNotContain("text/plain");
+    }
+
+    @Test
+    void 필수_헤더가_없으면_400_VALIDATION_ERROR이고_500이_아니다() throws Exception {
+        String body = expectError(get("/test/errors/header"), 400, ErrorCode.VALIDATION_ERROR);
+        assertThat(body).contains("Idempotency-Key");
+    }
+
+    @Test
+    void 필수_헤더가_있으면_정상_처리된다() throws Exception {
+        mockMvc.perform(get("/test/errors/header").header("Idempotency-Key", "k-1"))
+                .andExpect(status().isOk());
     }
 }

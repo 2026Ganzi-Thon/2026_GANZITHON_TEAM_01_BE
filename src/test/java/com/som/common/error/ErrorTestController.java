@@ -10,6 +10,7 @@ import java.util.Map;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -63,6 +64,11 @@ class ErrorTestController {
     @GetMapping("/test/errors/api-message")
     Map<String, String> apiMessage() {
         throw new ApiException(ErrorCode.CONSENT_REQUIRED, "필수 약관 동의가 필요합니다.");
+    }
+
+    @GetMapping("/test/errors/header")
+    Map<String, String> header(@RequestHeader("Idempotency-Key") String key) {
+        return Map.of("ok", "true");
     }
 
     @GetMapping("/test/errors/boom")

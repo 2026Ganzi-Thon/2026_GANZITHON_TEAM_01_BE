@@ -20,6 +20,7 @@ import org.springframework.validation.FieldError;
 import org.springframework.validation.ObjectError;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingRequestHeaderException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -99,11 +100,34 @@ public class GlobalExceptionHandler {
         return respond(ErrorCode.METHOD_NOT_ALLOWED, ErrorCode.METHOD_NOT_ALLOWED.defaultMessage(), request);
     }
 
+    @ExceptionHandler(MissingRequestHeaderException.class)
+    ResponseEntity<ErrorResponse> handleMissingHeader(MissingRequestHeaderException ex, HttpServletRequest request) {
+        return validation(Stream.of(ex.getHeaderName() + ": " + MISSING_REASON), request);
+    }
+
     @ExceptionHandler(Exception.class)
     ResponseEntity<ErrorResponse> handleUnexpected(Exception ex, HttpServletRequest request) {
+        // 위에서 따로 다루지 않은 Spring MVC 표준 예외(415 등)는 원래 상태 코드를 따른다.
+        // 클라이언트 잘못(4xx)이 500 INTERNAL_ERROR로 바뀌지 않게 한다. 메시지는 고정 문구만 쓴다.
+        ErrorCode standard = ex instanceof org.springframework.web.ErrorResponse spring
+                ? fromSpringStatus(spring.getStatusCode().value())
+                : null;
+        if (standard != null) {
+            return respond(standard, standard.defaultMessage(), request);
+        }
         // 스택은 서버 로그에만 남긴다(요청 ID는 MDC로 함께 기록). 요청 바디는 남기지 않는다.
         log.error("Unhandled exception: {} {}", request.getMethod(), request.getRequestURI(), ex);
         return respond(ErrorCode.INTERNAL_ERROR, ErrorCode.INTERNAL_ERROR.defaultMessage(), request);
+    }
+
+    private ErrorCode fromSpringStatus(int status) {
+        return switch (status) {
+            case 400 -> ErrorCode.MALFORMED_REQUEST;
+            case 404 -> ErrorCode.NOT_FOUND;
+            case 405 -> ErrorCode.METHOD_NOT_ALLOWED;
+            case 415 -> ErrorCode.UNSUPPORTED_MEDIA_TYPE;
+            default -> null; // 그 밖의 상태(5xx 등)는 서버 오류로 처리한다
+        };
     }
 
     private ResponseEntity<ErrorResponse> validation(Stream<String> messages, HttpServletRequest request) {

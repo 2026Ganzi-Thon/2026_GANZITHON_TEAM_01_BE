@@ -13,6 +13,7 @@ public enum ErrorCode {
     NOT_FOUND(HttpStatus.NOT_FOUND, "요청한 정보를 찾을 수 없어요."),
     METHOD_NOT_ALLOWED(HttpStatus.METHOD_NOT_ALLOWED, "지원하지 않는 요청 방식이에요."),
     CONFLICT(HttpStatus.CONFLICT, "요청이 현재 상태와 충돌해요."),
+    UNSUPPORTED_MEDIA_TYPE(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "지원하지 않는 요청 형식이에요."),
     RATE_LIMITED(HttpStatus.TOO_MANY_REQUESTS, "요청이 너무 많아요. 잠시 후 다시 시도해 주세요."),
     INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "일시적인 문제가 생겼어요. 잠시 후 다시 시도해 주세요."),
     ENGINE_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "지금은 결과를 불러올 수 없어요. 잠시 후 다시 시도해 주세요.");
