@@ -1,0 +1,44 @@
+spring:
+  application:
+    name: som
+  config:
+    import: optional:file:.env[.properties]
+  datasource:
+    url: ${SOM_DB_URL}
+    username: ${SOM_DB_USER}
+    password: ${SOM_DB_PASSWORD}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+server:
+  servlet:
+    session:
+      timeout: 30m          # 세션 만료 (명세에 값 없음 → 설정값)
+      cookie:
+        http-only: true
+        secure: true
+        same-site: lax
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+    enabled: ${SOM_API_DOCS_ENABLED:true}
+  swagger-ui:
+    enabled: ${SOM_API_DOCS_ENABLED:true}
+  paths-to-match: /api/**   # 공개 API만 문서화 (테스트 전용 /test/** 등 제외)
+
+som:
+  time:
+    zone: Asia/Seoul
+  request-id:
+    header: X-Request-ID
+    max-length: 64
+
+logging:
+  pattern:
+    level: "%5p [%X{requestId:-}]"
