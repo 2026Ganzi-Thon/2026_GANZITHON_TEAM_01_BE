@@ -1,8 +1,28 @@
-node_modules/
-.next/
-out/
-next-env.d.ts
-tsconfig.tsbuildinfo
+# Gradle
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+
+# IDE
+.idea/
+*.iml
+.vscode/
+bin/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Local config
+application-local.yml
 
 # phase execution outputs
 phases/**/phase*-output.json
