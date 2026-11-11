@@ -18,3 +18,10 @@ spring:
 som:
   time:
     zone: Asia/Seoul
+  request-id:
+    header: X-Request-ID
+    max-length: 64
+
+logging:
+  pattern:
+    level: "%5p [%X{requestId:-}]"
