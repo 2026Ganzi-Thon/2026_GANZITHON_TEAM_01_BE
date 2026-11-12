@@ -41,10 +41,14 @@ curl -sS http://127.0.0.1:8000/v1/fatigue/calculate \
 
 ## 소미 AI 대화
 
-로컬 Ollama를 실행하고 사용할 모델을 내려받은 뒤, 서버를 아래와 같이 실행한다. 모델명은 `ollama list`로 확인한다.
+시연 모델은 [Qwen3 4B](https://ollama.com/library/qwen3:4b)다. 로컬 Ollama를 실행한 상태에서 모델을 내려받고 메모리에 미리 올린 뒤 B 서버를 시작한다.
 
 ```sh
-SOM_OLLAMA_MODEL='설치한-모델명' \
+ollama pull qwen3:4b
+curl -fsS --max-time 60 http://127.0.0.1:11434/api/generate \
+  -H 'Content-Type: application/json' \
+  -d '{"model":"qwen3:4b","keep_alive":"15m"}'
+SOM_OLLAMA_MODEL=qwen3:4b \
   .venv/bin/python -m uvicorn som_engine.api:app --host 127.0.0.1 --port 8000 --no-access-log
 ```
 
@@ -54,4 +58,6 @@ curl -sS http://127.0.0.1:8000/v1/chat/respond \
   -d '{"subjectKey":"demo","localDate":"2026-11-12","mode":"REPLY","userText":"오늘 발표가 잘 안 풀려서 자꾸 생각나요.","recentMessages":[{"role":"SOMI","text":"오늘 가장 마음에 남는 일은 뭐예요?"}]}'
 ```
 
-모델이 현재 메시지와 최근 대화 최대 6턴을 참고해 소미 답변을 생성한다. 모델에는 해당 대화 내용과 체크인에서 고른 도움 유형만 전달한다. 명시적인 위기 신호는 모델 호출 전에 별도 응답으로 처리한다. 모델이 위기 신호를 반환한 경우에도 별도 응답을 사용한다. 설정이 없거나 모델 호출이 실패하거나 응답 검증을 통과하지 못하면 기본 문구로 응답한다. 운영 전에는 모델별 대화 품질과 안전 분기를 검증해야 한다. [Ollama Chat API](https://docs.ollama.com/api/chat)
+모델이 현재 메시지와 최근 대화 최대 6턴을 참고해 소미 답변을 생성한다. 모델에는 해당 대화 내용과 체크인에서 고른 도움 유형만 전달한다. 명시적인 위기 신호는 모델 호출 전에 별도 응답으로 처리한다. 모델이 위기 신호를 반환한 경우에도 별도 응답을 사용한다. 설정이 없거나 모델 호출이 실패하면 기본 문구로 응답한다. 한국어가 아니거나 사용자의 메시지를 거의 그대로 반복한 답변도 기본 문구로 대체한다. B의 Ollama 연결 제한은 1초, 읽기 제한은 12초다. 운영 전에는 모델별 대화 품질과 안전 분기를 검증해야 한다. [Ollama Chat API](https://docs.ollama.com/api/chat)
+
+시연 검증은 Apple M4에서 합성 대화로 진행했다. 일반 한국어 대화 4건(최근 대화 이어가기 포함), 시간에 맞춘 루틴 추천 1건, 위기 분기 3건, Ollama 중단 시 대체 응답을 확인했다. 일반 대화의 첫 요청은 2.89초, 모델이 메모리에 올라간 후에는 1.40~2.18초였다. 실제 연동에서는 호출 측 타임아웃을 이 응답 시간과 B의 읽기 제한을 고려해 설정한다.
