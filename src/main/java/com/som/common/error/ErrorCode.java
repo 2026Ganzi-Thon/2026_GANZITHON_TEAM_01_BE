@@ -12,6 +12,7 @@ public enum ErrorCode {
     CONSENT_REQUIRED(HttpStatus.FORBIDDEN, "필요한 동의를 먼저 완료해 주세요."),
     SOURCE_NOT_CONSENTED(HttpStatus.FORBIDDEN, "연결하지 않은 정보는 받을 수 없어요."),
     CSRF_INVALID(HttpStatus.FORBIDDEN, "보안 확인이 만료됐어요. 새로고침 후 다시 시도해 주세요."),
+    JOURNAL_LOCKED(HttpStatus.FORBIDDEN, "오늘의 루틴을 모두 마치면 열려요."),
     NOT_FOUND(HttpStatus.NOT_FOUND, "요청한 정보를 찾을 수 없어요."),
     METHOD_NOT_ALLOWED(HttpStatus.METHOD_NOT_ALLOWED, "지원하지 않는 요청 방식이에요."),
     CONFLICT(HttpStatus.CONFLICT, "요청이 현재 상태와 충돌해요."),

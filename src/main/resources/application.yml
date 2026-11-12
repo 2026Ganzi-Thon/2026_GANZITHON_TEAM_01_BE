@@ -110,6 +110,8 @@ som:
     done-min-completed: 1        # TODO(DECISION): '이행' 기준 미정(A_SPEC §9). 기본: 1개 이상 완료
   journal:
     requires-all-routines: true  # 마음 정리는 오늘 루틴 4개 모두 완료 시 열림(A_SPEC §9 기본값)
+    max-text-length: 1000        # TODO(DECISION): 자유 기록 최대 길이 미정(A_SPEC §9). 기본 1000자
+    allow-empty: true            # TODO(DECISION): 감정·기록 둘 다 비어도 완료 허용(A_SPEC §9 기본값)
   idempotency:
     retention: 24h            # Idempotency-Key 보존 기간(명세에 값 없음 → 설정값)
   engine:
