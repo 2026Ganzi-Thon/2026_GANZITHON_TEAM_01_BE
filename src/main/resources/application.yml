@@ -98,6 +98,9 @@ som:
     retention: 24h              # Idempotency-Key 보존 기간(명세에 값 없음 → 설정값)
   engine:
     mode: mock                   # mock | real (ADR-002). real 구현은 B가 작성
+    timeout: 2s                  # engine 호출 1회 타임아웃(A_SPEC §12 — 상한은 설정)
+    max-attempts: 2              # 최초 포함 최대 시도 횟수
+    pool-size: 4                 # engine 호출 전용 스레드 수
     mock:
       # B 초안(A_SPEC §12) — 확정값 아님. 점수→단계: 0~24=1, 25~49=2, 50~74=3, 75~100=4
       level-min-scores: [25, 50, 75]
