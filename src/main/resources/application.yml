@@ -92,6 +92,10 @@ som:
     signals:
       # TODO(DECISION): 수집 요청 제한 값 미확정(ADR-008). 아래는 [제안] 값
       per-user:     { capacity: 30, refill-period: 1m }
+    chat:
+      # TODO(DECISION): 대화 요청 제한 값 미확정(A_SPEC §11 분당/일일). 아래는 [제안] 값
+      per-user-minute: { capacity: 10,  refill-period: 1m }
+      per-user-day:    { capacity: 200, refill-period: 1d }
   checkin:
     max-stressors: 1             # TODO(DECISION): Q2 최대 선택 개수 미정(A_SPEC §6). 기본 1
     max-range-days: 31           # GET /checkins?from=&to= 최대 기간(명세에 값 없음 → 설정값)
@@ -104,6 +108,13 @@ som:
         - "피로가 쌓였나 봐요. 오늘 이야기를 들려줄래요?"
         - "많이 지쳤죠. 천천히 같이 쉬어 가요."
       insufficient: "오늘 마음은 어떤가요? 체크인으로 알려 주세요."
+  chat:
+    max-length: 500              # TODO(DECISION): 대화 입력 최대 길이 미정(A_SPEC §8). 기본 500자
+    recent-turns: 10             # engine에 넘기는 최근 메시지 수(B 합의 대기)
+    send-user-text-to-engine: false  # TODO(DECISION): 사용자 원문을 engine(외부 LLM)에 보낼지·고지 방식 미정(A_SPEC §8). 기본: 보내지 않음
+    fallback-text: "지금은 잠시 답변이 어려워요. 호흡 루틴을 먼저 해볼까요?"   # engine 실패 시 고정 문구(A_SPEC §8)
+    page-size: 30
+    max-page-size: 100
   insights:
     allowed-days: [7, 30]        # 마이 기간 기록(A_SPEC §13)
   routine:

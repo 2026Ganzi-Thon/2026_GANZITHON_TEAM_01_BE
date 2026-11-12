@@ -19,3 +19,6 @@ som:
       per-ip:       { capacity: 100000, refill-period: 1m }
     signals:
       per-user:     { capacity: 100000, refill-period: 1m }
+    chat:
+      per-user-minute: { capacity: 100000, refill-period: 1m }
+      per-user-day:    { capacity: 100000, refill-period: 1d }
