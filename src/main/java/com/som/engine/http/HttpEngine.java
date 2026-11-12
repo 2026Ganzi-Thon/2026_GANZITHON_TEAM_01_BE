@@ -13,9 +13,11 @@ import com.som.engine.insight.InsightResult;
 import com.som.engine.routine.RoutineEngine;
 import com.som.engine.routine.RoutineRecommendation;
 import com.som.engine.routine.RoutineRequest;
+import com.som.engine.routine.WoolTrimEngine;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.time.Duration;
+import java.time.LocalDate;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.HttpHeaders;
@@ -27,7 +29,7 @@ import org.springframework.web.client.RestClient;
 
 @Component
 @ConditionalOnProperty(prefix = "som.engine", name = "mode", havingValue = "real")
-public class HttpEngine implements FatigueEngine, InsightEngine, RoutineEngine, ChatEngine, EngineDataEraser {
+public class HttpEngine implements FatigueEngine, InsightEngine, RoutineEngine, ChatEngine, EngineDataEraser, WoolTrimEngine {
 
     private final RestClient client;
 
@@ -71,6 +73,16 @@ public class HttpEngine implements FatigueEngine, InsightEngine, RoutineEngine, 
     public RoutineRecommendation recommend(RoutineRequest request) {
         return post("/v1/routines/recommend", request, RoutineRecommendation.class);
     }
+
+    @Override
+    public Boolean shouldPlay(String subjectKey, LocalDate localDate) {
+        var result = post("/v1/routines/wool-trim", new TrimRequest(subjectKey, localDate, true), TrimResult.class);
+        return result == null ? null : result.shouldPlay();
+    }
+
+    private record TrimRequest(String subjectKey, LocalDate localDate, boolean journalCompleted) {}
+
+    private record TrimResult(Boolean shouldPlay, String animationKey, String message) {}
 
     @Override
     public ChatResult respond(ChatRequest request) {

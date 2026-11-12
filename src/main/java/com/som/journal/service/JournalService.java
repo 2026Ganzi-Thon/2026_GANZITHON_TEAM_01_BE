@@ -1,8 +1,10 @@
 package com.som.journal.service;
 
+import com.som.auth.repository.UserRepository;
 import com.som.common.error.ApiException;
 import com.som.common.error.ErrorCode;
 import com.som.common.time.ServiceDates;
+import com.som.engine.routine.WoolTrimEngine;
 import com.som.journal.JournalProperties;
 import com.som.journal.domain.JournalEntry;
 import com.som.journal.dto.JournalRequest;
@@ -10,9 +12,12 @@ import com.som.journal.dto.JournalResponse;
 import com.som.journal.repository.JournalEntryRepository;
 import com.som.journal.repository.WoolTrimEventRepository;
 import com.som.routine.service.RoutineSessionService;
+import com.som.state.service.EngineGateway;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -33,14 +38,21 @@ public class JournalService {
     private final RoutineSessionService routines;
     private final ServiceDates dates;
     private final JournalProperties properties;
+    private final Optional<WoolTrimEngine> trimEngine;
+    private final UserRepository users;
+    private final EngineGateway gateway;
 
     public JournalService(JournalEntryRepository entries, WoolTrimEventRepository woolTrims,
-                          RoutineSessionService routines, ServiceDates dates, JournalProperties properties) {
+                          RoutineSessionService routines, ServiceDates dates, JournalProperties properties,
+                          Optional<WoolTrimEngine> trimEngine, UserRepository users, EngineGateway gateway) {
         this.entries = entries;
         this.woolTrims = woolTrims;
         this.routines = routines;
         this.dates = dates;
         this.properties = properties;
+        this.trimEngine = trimEngine;
+        this.users = users;
+        this.gateway = gateway;
     }
 
     @Transactional
@@ -56,8 +68,21 @@ public class JournalService {
         }
         OffsetDateTime now = dates.now();
         JournalEntry saved = entries.saveAndFlush(JournalEntry.of(userId, today, request.emotion(), text, now));
-        woolTrims.recordOnce(userId, today, TRIM_SOURCE, now);
-        return toResponse(saved, true);
+        boolean trimmed = woolTrims.exists(userId, today);
+        if (!trimmed && shouldTrim(userId, today)) {
+            woolTrims.recordOnce(userId, today, TRIM_SOURCE, now);
+            trimmed = true;
+        }
+        return toResponse(saved, trimmed);
+    }
+
+    private boolean shouldTrim(Long userId, LocalDate date) {
+        return trimEngine.map(engine -> {
+            String subjectKey = users.findById(userId).map(user -> user.getSubjectKey())
+                    .orElseThrow(() -> new ApiException(ErrorCode.UNAUTHORIZED));
+            return gateway.call("routines.wool-trim", () -> engine.shouldPlay(subjectKey, date),
+                    Objects::nonNull).orElse(true);
+        }).orElse(true);
     }
 
     @Transactional(readOnly = true)
