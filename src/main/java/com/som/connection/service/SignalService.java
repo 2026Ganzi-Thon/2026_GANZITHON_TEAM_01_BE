@@ -23,7 +23,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * 연동 데이터 수신(데모·개발용, provider=DEMO). 순서: 동의 확인(미동의면 403, 값을 읽거나 쓰지 않음)
+ * 연동 데이터 수신(데모·개발용, provider=DEMO). 순서: (userId, source) 잠금 → 동의 확인(미동의면 403, 값을 읽거나 쓰지 않음)
  * → 요청 전체 검증(하나라도 틀리면 400, 부분 저장 없음) → 키별 upsert → 수면 분 파생.
  * 결측은 행을 만들지 않는다. 피로 계산·engine 호출은 하지 않는다. 값은 로그에 남기지 않는다.
  */
@@ -46,6 +46,7 @@ public class SignalService {
 
     @Transactional
     public SignalIngestResponse ingest(Long userId, SignalIngestRequest request) {
+        signals.lockSource(userId, request.source()); // 철회와 직렬화: 동의 확인 전에 잡는다
         if (!consentChecker.isConsented(userId, request.source())) {
             throw new ApiException(ErrorCode.SOURCE_NOT_CONSENTED);
         }

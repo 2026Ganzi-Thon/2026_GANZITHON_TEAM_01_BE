@@ -9,6 +9,7 @@ import com.som.connection.domain.ConnectionStatus;
 import com.som.connection.domain.DataSource;
 import com.som.connection.dto.ConnectionResponse;
 import com.som.connection.repository.ConnectionRepository;
+import com.som.connection.repository.DailySignalRepository;
 import com.som.consent.domain.ConsentType;
 import com.som.consent.domain.UserConsent;
 import com.som.consent.repository.UserConsentRepository;
@@ -36,16 +37,19 @@ import org.springframework.transaction.annotation.Transactional;
 public class ConnectionService implements SourceConsentChecker {
 
     private final ConnectionRepository connections;
+    private final DailySignalRepository signals;
     private final UserConsentRepository consents;
     private final SourceConsentProperties properties;
     private final ApplicationEventPublisher events;
     private final ObjectMapper objectMapper;
     private final Clock clock;
 
-    public ConnectionService(ConnectionRepository connections, UserConsentRepository consents,
+    public ConnectionService(ConnectionRepository connections, DailySignalRepository signals,
+                             UserConsentRepository consents,
                              SourceConsentProperties properties, ApplicationEventPublisher events,
                              ObjectMapper objectMapper, Clock clock) {
         this.connections = connections;
+        this.signals = signals;
         this.consents = consents;
         this.properties = properties;
         this.events = events;
@@ -90,6 +94,7 @@ public class ConnectionService implements SourceConsentChecker {
      */
     @Transactional
     public ConnectionResponse revoke(Long userId, DataSource source) {
+        signals.lockSource(userId, source); // 진행 중인 수신이 끝난 뒤 철회한다(SignalService.ingest와 같은 잠금)
         OffsetDateTime now = OffsetDateTime.now(clock);
         if (isConsented(userId, source)) {
             consents.save(consentRow(userId, source, false, now));

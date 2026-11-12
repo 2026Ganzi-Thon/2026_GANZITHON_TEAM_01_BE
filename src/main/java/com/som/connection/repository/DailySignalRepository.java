@@ -59,6 +59,15 @@ public class DailySignalRepository {
                 .stream().filter(Objects::nonNull).findFirst();
     }
 
+    /**
+     * (userId, source) 단위 트랜잭션 잠금(커밋·롤백 시 해제). 동의 철회와 수신을 직렬화해서,
+     * 철회가 커밋되기 전에 동의 확인을 통과한 수신이 철회 후 삭제를 피해 데이터를 남기지 못하게 한다.
+     */
+    public void lockSource(Long userId, DataSource source) {
+        jdbc.queryForList("SELECT pg_advisory_xact_lock(hashtextextended(?, 0))",
+                "daily_signals:" + userId + ":" + source.name());
+    }
+
     public int deleteByUserIdAndSource(Long userId, DataSource source) {
         return jdbc.update("DELETE FROM daily_signals WHERE user_id = ? AND source = ?", userId, source.name());
     }
