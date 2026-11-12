@@ -259,7 +259,43 @@
 | 삭제 | `DELETE /api/v1/me/data`, `DELETE /api/v1/me`, `GET /api/v1/me/deletion-status` |
 
 공통: JSON, ISO 8601(오프셋 포함), `localDate`(YYYY-MM-DD, KST), `X-Request-ID`, `Idempotency-Key`, 커서 페이지네이션.
-에러 형식: `{"error": {"code": "VALIDATION_ERROR", "message": "...", "requestId": "..."}}` — 401 / 403(`CONSENT_REQUIRED` 등) / 404 / 400·422 / 409 / 429 / 503(engine 장애).
+에러 형식: `{"error": {"code": "VALIDATION_ERROR", "message": "...", "requestId": "..."}}` — 401 / 403(`CONSENT_REQUIRED` 등) / 404 / 400 / 409 / 415 / 429 / 503(engine 장애).
+
+### 13-1. 구현 현황 (2026-11-12, 백엔드 A)
+
+위 표의 경로는 **온보딩을 빼고 모두 그대로 구현**했다. 실제 요청·응답 형식은 OpenAPI 문서(`/v3/api-docs`, `/swagger-ui.html`)를 기준으로 한다.
+
+| 항목 | 구현 |
+|---|---|
+| 온보딩 `GET·PUT /api/v1/me/onboarding` | 미구현 — §4 `[결정 필요]` |
+| 아이디/비밀번호 찾기 | 미구현. 경로가 정해지지 않아 "준비 중" 에러도 없다(호출하면 404) — 경로 결정 필요 |
+| `Idempotency-Key` | `POST /api/v1/checkins`에서만 받는다(선택). 루틴 완료는 사용자·루틴·날짜 유니크로 멱등 |
+| 커서 페이지네이션 | `GET /api/v1/chat/messages`(`cursor`, `size` 기본 30·최대 100, 응답 `nextCursor`) |
+| 삭제·탈퇴 확인 | `DELETE /api/v1/me/data`, `DELETE /api/v1/me`는 바디 `{"confirm": true}` 필수 |
+| 필수 약관 게이트 예외 | `/api/v1/auth/**`, `/api/v1/me`, `/api/v1/me/consents`, `/api/v1/me/data`, `/api/v1/me/deletion-status`, `/api/v1/help-resources` |
+| 요청 제한 `[제안]` | 로그인(IP·아이디), 가입(IP), 수신(사용자), 대화(사용자 분당·일일), 삭제·탈퇴(사용자). 값은 설정 `som.rate-limit.*` |
+| 422 | 쓰지 않는다. 형식·규칙 위반은 모두 400 |
+
+**에러 코드** (`error.code`, 메시지는 기본 문구이며 검증 오류는 `"{필드}: {이유}"`로 바뀐다)
+
+| code | HTTP | 언제 |
+|---|---|---|
+| `VALIDATION_ERROR` | 400 | 입력 규칙 위반, 정의되지 않은 필드, 모르는 enum 값 |
+| `MALFORMED_REQUEST` | 400 | JSON을 읽을 수 없음 |
+| `UNAUTHORIZED` | 401 | 로그인 필요, 세션 만료, 탈퇴한 사용자의 세션 |
+| `INVALID_CREDENTIALS` | 401 | 로그인 실패(아이디 존재 여부를 드러내지 않음) |
+| `FORBIDDEN` | 403 | 권한 없음 |
+| `CONSENT_REQUIRED` | 403 | 필수 약관 미동의 |
+| `SOURCE_NOT_CONSENTED` | 403 | 동의하지 않은 연동 소스의 데이터 수신 |
+| `CSRF_INVALID` | 403 | CSRF 토큰 없음·불일치 |
+| `JOURNAL_LOCKED` | 403 | 오늘 루틴을 모두 마치기 전 마음 정리 저장 |
+| `NOT_FOUND` | 404 | 없는 리소스, 다른 사용자의 리소스 |
+| `METHOD_NOT_ALLOWED` | 405 | 지원하지 않는 메서드 |
+| `CONFLICT` | 409 | 아이디 중복, 같은 Idempotency-Key에 다른 요청, 완료한 루틴 건너뛰기, 카드 응답 변경 |
+| `UNSUPPORTED_MEDIA_TYPE` | 415 | JSON이 아닌 요청 |
+| `RATE_LIMITED` | 429 | 요청 제한 초과(`Retry-After` 헤더) |
+| `INTERNAL_ERROR` | 500 | 서버 오류 |
+| `ENGINE_UNAVAILABLE` | 503 | engine 장애이고 보여줄 마지막 정상 값이 없음 |
 
 ---
 
