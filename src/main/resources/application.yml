@@ -94,8 +94,17 @@ som:
   checkin:
     max-stressors: 1             # TODO(DECISION): Q2 최대 선택 개수 미정(A_SPEC §6). 기본 1
     max-range-days: 31           # GET /checkins?from=&to= 최대 기간(명세에 값 없음 → 설정값)
+  state:
+    bubble-text:
+      # TODO(DECISION): 말풍선 출처·문구 B 합의 대기(A_SPEC §7). 아래는 [제안] 임시 문구
+      levels:
+        - "오늘 마음이 가벼워 보여요. 이야기 나눠 볼래요?"
+        - "조금 지쳐 보여요. 잠깐 쉬어 갈까요?"
+        - "피로가 쌓였나 봐요. 오늘 이야기를 들려줄래요?"
+        - "많이 지쳤죠. 천천히 같이 쉬어 가요."
+      insufficient: "오늘 마음은 어떤가요? 체크인으로 알려 주세요."
   idempotency:
-    retention: 24h              # Idempotency-Key 보존 기간(명세에 값 없음 → 설정값)
+    retention: 24h             # Idempotency-Key 보존 기간(명세에 값 없음 → 설정값)
   engine:
     mode: mock                   # mock | real (ADR-002). real 구현은 B가 작성
     timeout: 2s                  # engine 호출 1회 타임아웃(A_SPEC §12 — 상한은 설정)
