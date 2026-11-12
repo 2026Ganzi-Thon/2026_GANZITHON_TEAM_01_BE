@@ -38,6 +38,38 @@ class Signal(Payload):
     hourBucket: int | None = Field(default=None, ge=0, le=23)
 
 
+SignalMetric = Literal[
+    "SLEEP_MINUTES", "SCREEN_TIME_MINUTES", "NIGHT_SCREEN_MINUTES",
+    "CALENDAR_BUSY_MINUTES", "CALENDAR_AVERAGE_GAP_MINUTES",
+]
+SignalSource = Literal["SLEEP", "SCREEN_TIME", "CALENDAR_PERSONAL", "CALENDAR_WORK"]
+MetricKey = tuple[SignalSource, SignalMetric]
+METRIC_SOURCES = {
+    "SLEEP_MINUTES": {"SLEEP"},
+    "SCREEN_TIME_MINUTES": {"SCREEN_TIME"},
+    "NIGHT_SCREEN_MINUTES": {"SCREEN_TIME"},
+    "CALENDAR_BUSY_MINUTES": {"CALENDAR_PERSONAL", "CALENDAR_WORK"},
+    "CALENDAR_AVERAGE_GAP_MINUTES": {"CALENDAR_PERSONAL", "CALENDAR_WORK"},
+}
+
+
+class SignalChange(Payload):
+    source: SignalSource
+    metric: SignalMetric
+    deltaMinutes: Annotated[int, Field(ge=-1440, le=1440)]
+
+    @model_validator(mode="after")
+    def validate_change(self):
+        if self.source not in METRIC_SOURCES[self.metric] or self.deltaMinutes == 0:
+            raise ValueError("invalid signal change")
+        return self
+
+
+class SignalDay(Payload):
+    localDate: date
+    signals: list[Signal] = Field(max_length=100)
+
+
 class Baseline(Payload):
     sleepMinutes: Minutes | None = None
     sleepRecordedDays: int = Field(default=0, ge=0)
@@ -51,6 +83,14 @@ class FatigueRequest(Dated):
     signals: list[Signal] = Field(default_factory=list, max_length=100)
     consentedSources: set[str] = Field(default_factory=set, max_length=20)
     baseline: Baseline | None = None
+    recentSignals: list[SignalDay] = Field(default_factory=list, max_length=14)
+
+    @model_validator(mode="after")
+    def unique_past_dates(self):
+        days = {record.localDate for record in self.recentSignals}
+        if len(days) != len(self.recentSignals) or any(day >= self.localDate for day in days):
+            raise ValueError("history must contain distinct past dates")
+        return self
 
 
 class FatigueResult(Payload):
@@ -63,6 +103,7 @@ class FatigueResult(Payload):
     assetKey: str | None = None
     usedSources: list[str] = Field(default_factory=list)
     baselineStatus: Literal["PERSONAL", "DEFAULT", "NOT_USED"] = "NOT_USED"
+    changes: list[SignalChange] = Field(default_factory=list)
     algorithmVersion: str
     calculatedAt: datetime
 
