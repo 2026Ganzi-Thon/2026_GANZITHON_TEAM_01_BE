@@ -60,6 +60,9 @@ public class FatigueSnapshot {
     @Column(name = "used_sources", nullable = false)
     private String usedSources;
 
+    @Column(name = "signal_changes", nullable = false)
+    private String signalChanges;
+
     @Column(name = "is_stale", nullable = false)
     private boolean stale;
 
@@ -81,7 +84,7 @@ public class FatigueSnapshot {
     /** engine 결과로 교체한다(정상 값이므로 stale 해제). */
     public void replace(Integer score, Integer level, BigDecimal woolDisplayKg, FatigueStatus status,
                         String statusText, String subText, String assetKey, String usedSourcesJson,
-                        String algorithmVersion, OffsetDateTime calculatedAt, OffsetDateTime now) {
+                        String algorithmVersion, OffsetDateTime calculatedAt, OffsetDateTime now, String signalChanges) {
         this.score = score;
         this.level = level;
         this.woolDisplayKg = woolDisplayKg;
@@ -90,6 +93,7 @@ public class FatigueSnapshot {
         this.subText = subText;
         this.assetKey = assetKey;
         this.usedSources = usedSourcesJson;
+        this.signalChanges = signalChanges;
         this.algorithmVersion = algorithmVersion;
         this.calculatedAt = calculatedAt;
         this.stale = false;
@@ -112,6 +116,7 @@ public class FatigueSnapshot {
     public String getStatusText() { return statusText; }
     public String getSubText() { return subText; }
     public String getAssetKey() { return assetKey; }
+    public String getSignalChanges() { return signalChanges; }
     public String getUsedSources() { return usedSources; }
     public String getAlgorithmVersion() { return algorithmVersion; }
     public boolean isStale() { return stale; }

@@ -56,7 +56,10 @@ public class HttpEngine implements FatigueEngine, InsightEngine, RoutineEngine, 
 
     @Override
     public FatigueResult calculate(FatigueRequest request) {
-        return post("/v1/fatigue/calculate", request, FatigueResult.class);
+        var minutes = request.signals().stream().filter(signal -> "min".equals(signal.unit())).toList();
+        var input = new FatigueRequest(request.subjectKey(), request.localDate(), request.timezone(), request.checkin(),
+                minutes, request.consentedSources(), request.recentSignals());
+        return post("/v1/fatigue/calculate", input, FatigueResult.class);
     }
 
     @Override

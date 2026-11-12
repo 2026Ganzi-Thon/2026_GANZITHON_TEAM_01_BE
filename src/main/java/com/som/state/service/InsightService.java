@@ -1,12 +1,18 @@
 package com.som.state.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.som.auth.domain.User;
 import com.som.auth.repository.UserRepository;
 import com.som.common.error.ApiException;
 import com.som.common.error.ErrorCode;
 import com.som.common.time.DateRange;
 import com.som.common.time.ServiceDates;
+import com.som.connection.service.SourceConsentChecker;
+import com.som.engine.chat.WeekSummary;
 import com.som.engine.fatigue.FatigueStatus;
+import com.som.engine.fatigue.SignalChange;
 import com.som.engine.insight.DailyState;
 import com.som.engine.insight.InsightEngine;
 import com.som.engine.insight.InsightRequest;
@@ -17,6 +23,7 @@ import com.som.state.repository.FatigueSnapshotRepository;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
@@ -33,42 +40,58 @@ public class InsightService {
     private final InsightEngine engine;
     private final EngineGateway gateway;
     private final ServiceDates dates;
+    private final SourceConsentChecker consents;
+    private final ObjectMapper objectMapper;
 
     public InsightService(FatigueSnapshotRepository snapshots, UserRepository users, InsightEngine engine,
-                          EngineGateway gateway, ServiceDates dates) {
+                          EngineGateway gateway, ServiceDates dates, SourceConsentChecker consents,
+                          ObjectMapper objectMapper) {
         this.snapshots = snapshots;
         this.users = users;
         this.engine = engine;
         this.gateway = gateway;
         this.dates = dates;
+        this.consents = consents;
+        this.objectMapper = objectMapper;
     }
 
     /** 이번 주 월~일(KST). */
     public InsightResponse week(Long userId) {
-        return summarize(userId, dates.currentWeek());
+        return summarize(userId, dates.currentWeek()).response();
     }
 
     /** 오늘 포함 최근 N일. */
     public InsightResponse recent(Long userId, int days) {
-        return summarize(userId, dates.recentDays(days));
+        return summarize(userId, dates.recentDays(days)).response();
     }
 
-    private InsightResponse summarize(Long userId, DateRange range) {
-        Loaded loaded = load(userId, range);
-        InsightRequest request = new InsightRequest(loaded.subjectKey(), range.start(), range.end(), loaded.days());
+    public WeekSummary weekSummary(Long userId) {
+        InsightResult result = summarize(userId, dates.currentWeek()).result();
+        return new WeekSummary(result.averageLevel(), result.recordedDays(),
+                result.changes() == null ? List.of() : result.changes());
+    }
+
+    private Summary summarize(Long userId, DateRange range) {
+        Set<String> consented = consents.consentedSources(userId).stream().map(Enum::name)
+                .collect(Collectors.toUnmodifiableSet());
+        Loaded loaded = load(userId, range, consented);
+        InsightRequest request = new InsightRequest(loaded.subjectKey(), range.start(), range.end(),
+                loaded.days(), consented);
         InsightResult result = gateway.call("insight.summarize", () -> engine.summarize(request),
                         InsightService::isValid)
                 .orElseThrow(() -> new ApiException(ErrorCode.ENGINE_UNAVAILABLE));
         List<InsightResponse.DayLevel> days = loaded.days().stream()
                 .map(d -> new InsightResponse.DayLevel(d.localDate(), d.level(), d.woolDisplayKg())).toList();
-        // TODO(DECISION): 주간 단계 문구 출처 B 합의 대기(A_SPEC §7) — engine 결과에 없어 levelText는 null
-        return new InsightResponse(range.start(), range.end(), days, result.averageLevel(), result.recordedDays(),
-                result.changeSummary(), result.heaviestDate(), result.heaviestReason(), result.woolWeightKg(), null);
+        var response = new InsightResponse(range.start(), range.end(), days, result.averageLevel(), result.recordedDays(),
+                result.changeSummary(), result.heaviestDate(), result.heaviestReason(), result.woolWeightKg(), result.statusText());
+        return new Summary(response, result);
     }
+
+    private record Summary(InsightResponse response, InsightResult result) {}
 
     private record Loaded(String subjectKey, List<DailyState> days) {}
 
-    private Loaded load(Long userId, DateRange range) {
+    private Loaded load(Long userId, DateRange range, Set<String> consented) {
         String subjectKey = users.findById(userId).map(User::getSubjectKey)
                 .orElseThrow(() -> new ApiException(ErrorCode.UNAUTHORIZED));
         Map<LocalDate, FatigueSnapshot> byDate = snapshots
@@ -79,9 +102,22 @@ public class InsightService {
             if (s == null || s.getStatus() != FatigueStatus.CALCULATED) {
                 return new DailyState(date, null, null, null);
             }
-            return new DailyState(date, s.getLevel(), s.getScore(), s.getWoolDisplayKg());
+            return new DailyState(date, s.getLevel(), s.getScore(), s.getWoolDisplayKg(),
+                    readChanges(s.getSignalChanges(), consented));
         }).toList();
         return new Loaded(subjectKey, days);
+    }
+
+    private List<SignalChange> readChanges(String json, Set<String> consented) {
+        if (consented.isEmpty()) {
+            return List.of();
+        }
+        try {
+            List<SignalChange> changes = objectMapper.readValue(json, new TypeReference<>() {});
+            return changes.stream().filter(change -> consented.contains(change.source())).toList();
+        } catch (JsonProcessingException e) {
+            throw new IllegalStateException("Invalid stored signal changes");
+        }
     }
 
     /** 기록일이 0이면 평균 등이 null이어야 하고, 기록일은 0 이상이어야 한다. */

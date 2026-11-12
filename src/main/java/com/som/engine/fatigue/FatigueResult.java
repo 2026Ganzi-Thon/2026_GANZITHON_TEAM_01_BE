@@ -9,4 +9,11 @@ import java.util.List;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record FatigueResult(Integer score, Integer level, BigDecimal woolDisplayKg, FatigueStatus status,
                             String statusText, String subText, String assetKey, List<String> usedSources,
-                            String algorithmVersion, OffsetDateTime calculatedAt) {}
+                            String algorithmVersion, OffsetDateTime calculatedAt, List<SignalChange> changes) {
+    public FatigueResult(Integer score, Integer level, BigDecimal woolDisplayKg, FatigueStatus status,
+                         String statusText, String subText, String assetKey, List<String> usedSources,
+                         String algorithmVersion, OffsetDateTime calculatedAt) {
+        this(score, level, woolDisplayKg, status, statusText, subText, assetKey, usedSources,
+                algorithmVersion, calculatedAt, List.of());
+    }
+}

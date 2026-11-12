@@ -12,7 +12,11 @@ import java.util.Set;
  * @param checkin 그날 체크인이 없으면 null
  */
 public record FatigueRequest(String subjectKey, LocalDate localDate, ZoneId timezone, CheckinInput checkin,
-                             List<SignalInput> signals, Set<String> consentedSources) {
+                             List<SignalInput> signals, Set<String> consentedSources, List<SignalDay> recentSignals) {
+    public FatigueRequest(String subjectKey, LocalDate localDate, ZoneId timezone, CheckinInput checkin,
+                          List<SignalInput> signals, Set<String> consentedSources) {
+        this(subjectKey, localDate, timezone, checkin, signals, consentedSources, List.of());
+    }
 
     @Override
     public String toString() {

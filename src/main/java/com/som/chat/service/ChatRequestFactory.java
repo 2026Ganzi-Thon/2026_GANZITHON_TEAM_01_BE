@@ -18,7 +18,6 @@ import com.som.engine.chat.ChatRole;
 import com.som.engine.chat.ChatTurn;
 import com.som.engine.chat.WeekSummary;
 import com.som.engine.fatigue.CheckinInput;
-import com.som.state.dto.InsightResponse;
 import com.som.state.service.InsightService;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -93,8 +92,7 @@ public class ChatRequestFactory {
     /** 이번 주 요약을 못 구하면(engine 실패) null. */
     private WeekSummary weekSummary(Long userId) {
         try {
-            InsightResponse week = insights.week(userId);
-            return new WeekSummary(week.averageLevel(), week.recordedDays());
+            return insights.weekSummary(userId);
         } catch (ApiException e) {
             return null;
         }
