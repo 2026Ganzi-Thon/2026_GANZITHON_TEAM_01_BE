@@ -10,7 +10,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.som.support.ApiTestSupport;
 import com.som.support.MutableClock;
-import com.som.support.TestClockConfig;
+import com.som.support.TestSupportConfig;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -28,7 +28,7 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
-@Import(TestClockConfig.class)
+@Import(TestSupportConfig.class)
 class CheckinApiTest {
 
     static final String CHECKINS = "/api/v1/checkins";

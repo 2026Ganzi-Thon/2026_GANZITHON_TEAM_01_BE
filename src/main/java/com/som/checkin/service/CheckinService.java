@@ -20,13 +20,15 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
  * 하루 체크인 제출·조회(A_SPEC §6). 날짜는 서버가 KST로 정하고 과거 날짜 제출 경로는 없다.
- * 피로 점수·단계는 여기서 만들지 않는다(engine 결과만 — 계산 연결은 SnapshotService).
+ * 피로 점수·단계는 여기서 만들지 않는다(engine 결과만). 저장하면 CheckinSubmittedEvent를 발행하고,
+ * state 패키지가 커밋 후 SnapshotService로 다시 계산한다.
  */
 @Service
 @EnableConfigurationProperties(CheckinProperties.class)
@@ -39,14 +41,16 @@ public class CheckinService {
     private final AdvisoryLock locks;
     private final ServiceDates dates;
     private final CheckinProperties properties;
+    private final ApplicationEventPublisher events;
 
     public CheckinService(CheckinRepository checkins, IdempotencyService idempotency, AdvisoryLock locks,
-                          ServiceDates dates, CheckinProperties properties) {
+                          ServiceDates dates, CheckinProperties properties, ApplicationEventPublisher events) {
         this.checkins = checkins;
         this.idempotency = idempotency;
         this.locks = locks;
         this.dates = dates;
         this.properties = properties;
+        this.events = events;
     }
 
     /** 처음 제출 201, 같은 날 재제출 200(최신으로 갱신). Idempotency-Key 재생이면 처음 응답 그대로. */
@@ -63,6 +67,7 @@ public class CheckinService {
         LocalDate today = dates.today();
         OffsetDateTime now = dates.now();
         locks.lock("checkin:" + userId + ":" + today); // 같은 날 동시 첫 제출이 유니크 위반(500)이 되지 않게
+        events.publishEvent(new CheckinSubmittedEvent(userId, today)); // 커밋 후 스냅샷 재계산(state)
         Optional<Checkin> existing = checkins.findByUserIdAndLocalDate(userId, today);
         if (existing.isPresent()) {
             Checkin checkin = existing.get();
