@@ -106,6 +106,10 @@ som:
       insufficient: "오늘 마음은 어떤가요? 체크인으로 알려 주세요."
   insights:
     allowed-days: [7, 30]        # 마이 기간 기록(A_SPEC §13)
+  routine:
+    done-min-completed: 1        # TODO(DECISION): '이행' 기준 미정(A_SPEC §9). 기본: 1개 이상 완료
+  journal:
+    requires-all-routines: true  # 마음 정리는 오늘 루틴 4개 모두 완료 시 열림(A_SPEC §9 기본값)
   idempotency:
     retention: 24h            # Idempotency-Key 보존 기간(명세에 값 없음 → 설정값)
   engine:
