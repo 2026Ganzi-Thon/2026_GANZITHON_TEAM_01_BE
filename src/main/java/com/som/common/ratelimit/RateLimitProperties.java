@@ -2,9 +2,10 @@ package com.som.common.ratelimit;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
-/** 요청 횟수 제한 설정 (som.rate-limit). 삭제 규칙은 4단계에서 여기에 추가한다. */
+/** 요청 횟수 제한 설정 (som.rate-limit). */
 @ConfigurationProperties(prefix = "som.rate-limit")
-public record RateLimitProperties(int maxTrackedKeys, Login login, Signup signup, Signals signals, Chat chat) {
+public record RateLimitProperties(int maxTrackedKeys, Login login, Signup signup, Signals signals, Chat chat,
+                                  Deletion deletion) {
     public record Login(BucketSpec perIp, BucketSpec perLoginId) {}
 
     /** 회원가입(IP 기준). Argon2 해시 비용 때문에 대량 가입을 막는다. */
@@ -15,4 +16,7 @@ public record RateLimitProperties(int maxTrackedKeys, Login login, Signup signup
 
     /** 대화 전송(세션 사용자 기준, A_SPEC §11 분당/일일). */
     public record Chat(BucketSpec perUserMinute, BucketSpec perUserDay) {}
+
+    /** 기록 삭제·탈퇴(세션 사용자 기준, 두 API가 같은 버킷, A_SPEC §11). */
+    public record Deletion(BucketSpec perUser) {}
 }

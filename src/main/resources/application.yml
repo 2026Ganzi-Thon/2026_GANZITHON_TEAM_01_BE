@@ -72,9 +72,11 @@ som:
       CALENDAR_WORK:     { policy-version: "v1", items: ["바쁜 정도"], purpose: "TBD", retention: "TBD", sensitive: false }              # TODO(DECISION): 화면 잘림
     delete-signals-on-revoke: true   # TODO(DECISION): 철회 시 보유 데이터 삭제 정책 미확정(A_SPEC §5). 임시 기본값 = 즉시 삭제(보수적)
     gate:
-      exempt-paths:            # 필수 동의 전에도 허용 (계정·약관 API). 삭제·탈퇴 API는 4단계에서 추가
+      exempt-paths:            # 필수 동의 전에도 허용 (계정·약관·삭제·탈퇴 API)
         - /api/v1/auth/**
-        - /api/v1/me
+        - /api/v1/me             # GET 본인 조회, DELETE 탈퇴
+        - /api/v1/me/data        # 기록 삭제
+        - /api/v1/me/deletion-status
         - /api/v1/me/consents
         - /api/v1/help-resources   # 위기 안내는 동의 전에도(A_SPEC §10)
   signals:
@@ -96,6 +98,9 @@ som:
       # TODO(DECISION): 대화 요청 제한 값 미확정(A_SPEC §11 분당/일일). 아래는 [제안] 값
       per-user-minute: { capacity: 10,  refill-period: 1m }
       per-user-day:    { capacity: 200, refill-period: 1d }
+    deletion:
+      # TODO(DECISION): 삭제 요청 제한 값 미확정(A_SPEC §11). 아래는 [제안] 값
+      per-user:     { capacity: 3, refill-period: 1h }
   checkin:
     max-stressors: 1             # TODO(DECISION): Q2 최대 선택 개수 미정(A_SPEC §6). 기본 1
     max-range-days: 31           # GET /checkins?from=&to= 최대 기간(명세에 값 없음 → 설정값)
