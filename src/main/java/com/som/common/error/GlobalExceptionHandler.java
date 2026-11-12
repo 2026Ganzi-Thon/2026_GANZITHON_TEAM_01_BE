@@ -3,6 +3,7 @@ package com.som.common.error;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.exc.InvalidFormatException;
 import com.fasterxml.jackson.databind.exc.UnrecognizedPropertyException;
+import com.som.common.ratelimit.RateLimitedException;
 import com.som.common.web.RequestIds;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolation;
@@ -15,6 +16,7 @@ import java.util.stream.Stream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.MessageSourceResolvable;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.FieldError;
@@ -47,6 +49,13 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(ApiException.class)
     ResponseEntity<ErrorResponse> handleApi(ApiException ex, HttpServletRequest request) {
         return respond(ex.code(), ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(RateLimitedException.class)
+    ResponseEntity<ErrorResponse> handleRateLimited(RateLimitedException ex, HttpServletRequest request) {
+        return ResponseEntity.status(ex.code().status())
+                .header(HttpHeaders.RETRY_AFTER, String.valueOf(ex.retryAfterSeconds()))
+                .body(ErrorResponse.of(ex.code(), ex.getMessage(), RequestIds.current(request)));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
