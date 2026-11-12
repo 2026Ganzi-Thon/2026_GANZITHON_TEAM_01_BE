@@ -1,6 +1,7 @@
 package com.som.common.idempotency;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.som.common.error.ApiException;
 import com.som.common.error.ErrorCode;
@@ -82,7 +83,10 @@ public class IdempotencyService {
 
     private <T> T fromJson(String json, Class<T> type) {
         try {
-            return objectMapper.readValue(json, type);
+            // 저장된 오프셋(+09:00)을 그대로 재생한다(기본값은 UTC로 바꿔 버린다)
+            return objectMapper.readerFor(type)
+                    .without(DeserializationFeature.ADJUST_DATES_TO_CONTEXT_TIME_ZONE)
+                    .readValue(json);
         } catch (JsonProcessingException e) {
             throw new IllegalStateException("cannot read stored idempotent response", e);
         }
