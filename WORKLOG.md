@@ -51,7 +51,7 @@
 - [x] 컨트롤러를 `controller/` 하위로 정리 (2026-11-12 완료)
 - [ ] 가입·수신 요청 제한 값 확정 (현재 `[제안]`)
 - [ ] 홈 말풍선 문구(`som.state.bubble-text`)는 `[제안]` 임시 문구 — B·디자인과 확정
-- [ ] engine 계약(FatigueEngine·InsightEngine DTO) B와 합의
+- [ ] engine 계약 확정: B가 초안을 바탕으로 FastAPI API를 만들고 `/openapi.json`을 공유 → A가 real 모드 HTTP 클라이언트 구현
 - [x] 4단계 삭제 대상 전체 반영(`UserDataEraserTest` 안전망: user_id 컬럼이 있는 테이블은 모두 삭제 목록에 있어야 통과)
 - [ ] 도움 기관 링크 URL 2건 확인 후 마이그레이션으로 넣기(현재 NULL)
 - [ ] 삭제 ENGINE_PENDING 재시도 방식 결정(현재 기록만)
@@ -343,3 +343,9 @@
 ### 2026-11-12 — 개발 규칙 문서 정리
 - 팀이 같이 지킬 개발 규칙(꼭 지킬 규칙 8개·구현 규칙·개발 프로세스·명령어)을 `docs/DEVELOPMENT_RULES.md`로 정리했다.
 - 코드 주석·WORKLOG의 규칙 출처를 이 문서로 바꿨다.
+
+### 2026-11-12 — engine API 계약 초안 전달 준비
+- A↔B engine API 계약 초안을 마크다운 파일(`engine-api-contract.md`, 저장소 밖)로 정리해 B에 전달하기로 했다.
+  - 내용: 공통 규칙, 엔드포인트 5개, 피로 계산·기간 요약·루틴 추천·대화의 요청·응답 JSON, 데이터 삭제 제안, B와 정할 것
+- 이후 계약은 B가 주도한다. B는 초안 형식(필드 이름·결측 null 규칙)을 출발점으로 FastAPI 서버를 만들고, 자동 생성되는 `/openapi.json`을 기준 문서로 공유한다.
+- B가 형식을 바꾸면 A의 `engine` DTO·Mock도 같이 고친다(필드 추가는 영향 적음, 이름 변경·삭제는 수정 필요).
