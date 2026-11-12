@@ -170,6 +170,72 @@ class MigrationTest {
                 .isInstanceOf(DataIntegrityViolationException.class);
     }
 
+    @Test
+    void dailySignalsTableHasExpectedColumnsAndIndex() {
+        List<Map<String, Object>> rows = jdbc.queryForList("""
+                SELECT column_name, data_type, is_nullable, character_maximum_length
+                FROM information_schema.columns
+                WHERE table_schema = current_schema() AND table_name = 'daily_signals'
+                """);
+        Map<String, Map<String, Object>> columns = rows.stream()
+                .collect(Collectors.toMap(r -> (String) r.get("column_name"), r -> r));
+
+        // '안 보는 것'(제목·참석자·위치·앱 이름 등)이나 세부 로그를 담을 컬럼이 없다
+        assertThat(columns).containsOnlyKeys("id", "user_id", "local_date", "source", "metric_key", "value",
+                "value_at", "unit", "hour_bucket", "provider", "collected_at");
+        assertColumn(columns, "id", "bigint", "NO", null);
+        assertColumn(columns, "user_id", "bigint", "NO", null);
+        assertColumn(columns, "local_date", "date", "NO", null);
+        assertColumn(columns, "source", "character varying", "NO", 40);
+        assertColumn(columns, "metric_key", "character varying", "NO", 40);
+        assertColumn(columns, "value", "numeric", "YES", null);
+        assertColumn(columns, "value_at", "timestamp with time zone", "YES", null);
+        assertColumn(columns, "unit", "character varying", "YES", 20);
+        assertColumn(columns, "hour_bucket", "smallint", "YES", null);
+        assertColumn(columns, "provider", "character varying", "NO", 20);
+        assertColumn(columns, "collected_at", "timestamp with time zone", "NO", null);
+
+        Integer index = jdbc.queryForObject("""
+                SELECT COUNT(*) FROM pg_indexes
+                WHERE schemaname = current_schema() AND tablename = 'daily_signals'
+                  AND indexdef LIKE '%(user_id, local_date)'
+                """, Integer.class);
+        assertThat(index).isEqualTo(1);
+    }
+
+    @Test
+    void dailySignalKeyTreatsNullHourBucketAsEqual() {
+        insertUser("sig-user", "sig-subject");
+        Long userId = jdbc.queryForObject("SELECT id FROM users WHERE login_id = 'sig-user'", Long.class);
+        jdbc.update(INSERT_SIGNAL, userId, "STEPS_DAILY", null);
+
+        assertThatThrownBy(() -> jdbc.update(INSERT_SIGNAL, userId, "STEPS_DAILY", null))
+                .isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    void dailySignalAllowsDifferentHourBuckets() {
+        insertUser("sig-user2", "sig-subject2");
+        Long userId = jdbc.queryForObject("SELECT id FROM users WHERE login_id = 'sig-user2'", Long.class);
+        jdbc.update(INSERT_SIGNAL, userId, "SCREEN_TIME_MINUTES", 0);
+        jdbc.update(INSERT_SIGNAL, userId, "SCREEN_TIME_MINUTES", 1);
+
+        assertThatThrownBy(() -> jdbc.update(INSERT_SIGNAL, userId, "SCREEN_TIME_MINUTES", 1))
+                .isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    void dailySignalRequiresExistingUser() {
+        assertThatThrownBy(() -> jdbc.update(INSERT_SIGNAL, -1L, "STEPS_DAILY", null))
+                .isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    private static final String INSERT_SIGNAL = """
+            INSERT INTO daily_signals (user_id, local_date, source, metric_key, value, unit, hour_bucket,
+                                       provider, collected_at)
+            VALUES (?, DATE '2026-11-11', 'X', ?, 1, 'count', ?::smallint, 'DEMO', now())
+            """;
+
     private static final String INSERT_CONNECTION =
             "INSERT INTO connections (user_id, source, provider, status) VALUES (?, 'SLEEP', 'DEMO', ?)";
 

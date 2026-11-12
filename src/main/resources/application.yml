@@ -70,11 +70,15 @@ som:
       SCREEN_TIME:       { policy-version: "v1", items: ["시간대별 총 사용 시간"], purpose: "TBD", retention: "TBD", sensitive: false }  # TODO(DECISION): purpose·retention
       CALENDAR_PERSONAL: { policy-version: "v1", items: ["일정 수", "바쁜 시간대"], purpose: "TBD", retention: "TBD", sensitive: false }   # TODO(DECISION)
       CALENDAR_WORK:     { policy-version: "v1", items: ["바쁜 정도"], purpose: "TBD", retention: "TBD", sensitive: false }              # TODO(DECISION): 화면 잘림
+    delete-signals-on-revoke: true   # TODO(DECISION): 철회 시 보유 데이터 삭제 정책 미확정(A_SPEC §5). 임시 기본값 = 즉시 삭제(보수적)
     gate:
       exempt-paths:            # 필수 동의 전에도 허용 (계정·약관 API). 삭제·탈퇴 API는 4단계에서 추가
         - /api/v1/auth/**
         - /api/v1/me
         - /api/v1/me/consents
+  signals:
+    ingest-enabled: true          # 데모·개발용 수신 API. 운영 프로필에서 false로 끌 수 있음(A_SPEC §5) — false면 404
+    max-entries-per-request: 48
   rate-limit:
     max-tracked-keys: 10000      # 키 저장소 상한(메모리 보호)
     login:

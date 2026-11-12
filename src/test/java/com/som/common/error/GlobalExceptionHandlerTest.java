@@ -73,7 +73,8 @@ class GlobalExceptionHandlerTest {
         assertThat(ErrorCode.ENGINE_UNAVAILABLE.status().value()).isEqualTo(503);
         assertThat(ErrorCode.CSRF_INVALID.status().value()).isEqualTo(403);
         assertThat(ErrorCode.UNSUPPORTED_MEDIA_TYPE.status().value()).isEqualTo(415);
-        assertThat(ErrorCode.values()).hasSize(14);
+        assertThat(ErrorCode.SOURCE_NOT_CONSENTED.status().value()).isEqualTo(403);
+        assertThat(ErrorCode.values()).hasSize(15);
         for (ErrorCode code : ErrorCode.values()) {
             assertThat(code.defaultMessage()).isNotBlank();
         }
