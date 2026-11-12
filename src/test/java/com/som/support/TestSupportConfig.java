@@ -1,7 +1,9 @@
 package com.som.support;
 
+import com.som.engine.chat.mock.MockChatEngine;
 import com.som.engine.fatigue.mock.MockFatigueEngine;
 import com.som.engine.insight.mock.MockInsightEngine;
+import com.som.engine.routine.mock.MockRoutineEngine;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
@@ -31,5 +33,17 @@ public class TestSupportConfig {
     @Primary
     public SwitchableInsightEngine switchableInsightEngine(MockInsightEngine delegate) {
         return new SwitchableInsightEngine(delegate);
+    }
+
+    @Bean
+    @Primary
+    public SwitchableRoutineEngine switchableRoutineEngine(MockRoutineEngine delegate) {
+        return new SwitchableRoutineEngine(delegate);
+    }
+
+    @Bean
+    @Primary
+    public SwitchableChatEngine switchableChatEngine(MockChatEngine delegate) {
+        return new SwitchableChatEngine(delegate);
     }
 }

@@ -58,8 +58,10 @@ public final class ApiTestSupport {
     /** login_id가 prefix로 시작하는 사용자와 그 사용자의 모든 데이터를 지운다. */
     public static void deleteUsers(JdbcTemplate jdbc, String prefix) {
         String ids = "(SELECT id FROM users WHERE login_id LIKE '" + prefix + "%')";
-        for (String table : List.of("fatigue_snapshots", "idempotency_keys", "daily_signals", "connections",
-                "user_consents")) {
+        // FK 순서: 참조하는 테이블부터. 아직 없는 테이블은 건너뛴다.
+        for (String table : List.of("recommendation_responses", "chat_messages", "wool_trim_events",
+                "journal_entries", "routine_sessions", "routine_recommendations", "notification_settings",
+                "fatigue_snapshots", "idempotency_keys", "daily_signals", "connections", "user_consents")) {
             if (tableExists(jdbc, table)) {
                 jdbc.update("DELETE FROM " + table + " WHERE user_id IN " + ids);
             }

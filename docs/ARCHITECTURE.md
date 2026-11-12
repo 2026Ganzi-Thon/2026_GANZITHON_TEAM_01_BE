@@ -14,7 +14,7 @@ src/main/java/com/som/
 ├── journal/      # 마음 정리 기록, 털 깎임 연출 이벤트
 ├── settings/     # 알림 설정, 도움 받을 곳 목록
 ├── account/      # 데이터 삭제·탈퇴·삭제 상태
-└── engine/       # B 영역. 인터페이스 + DTO + Mock 구현만 (실제 구현은 B)
+└── engine/       # B 연동 경계. 인터페이스 + DTO + Mock + B(FastAPI) HTTP 클라이언트 (계산 로직은 B 서비스)
 src/main/resources/
 ├── application.yml
 └── db/migration/ # Flyway: V1__init.sql, V2__seed_routines.sql, V3__seed_help.sql ...
@@ -24,7 +24,7 @@ src/test/java/com/som/...  # 패키지 구조 동일
 ## 패턴
 - 기능 패키지마다 `controller / service / repository / domain / dto` 레이어. 컨트롤러는 DTO만 주고받고 엔티티를 그대로 반환하지 않는다.
 - 입력 검증은 DTO + Bean Validation. 선택지는 Java enum으로 받고, 모르는 값·형식 오류는 `@RestControllerAdvice`에서 공통 에러 형식으로 변환한다.
-- engine 연동은 **인터페이스 의존**. `som.engine.mode=mock|real` 설정으로 구현을 바꾼다. A는 Mock만 작성한다.
+- engine 연동은 **인터페이스 의존**. `som.engine.mode=mock|real` 설정으로 구현을 바꾼다. mock은 A의 Mock, real은 B(별도 FastAPI 서비스)를 HTTP로 부르는 클라이언트다(ADR-001).
   ```java
   public interface FatigueEngine  { FatigueResult  calculate(FatigueRequest req); }
   public interface InsightEngine  { InsightResult  summarize(InsightRequest req); }
