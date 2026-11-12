@@ -116,7 +116,7 @@ som:
   chat:
     max-length: 500              # TODO(DECISION): 대화 입력 최대 길이 미정(A_SPEC §8). 기본 500자
     recent-turns: 10             # engine에 넘기는 최근 메시지 수(B 합의 대기)
-    send-user-text-to-engine: false  # TODO(DECISION): 사용자 원문을 engine(외부 LLM)에 보낼지·고지 방식 미정(A_SPEC §8). 기본: 보내지 않음
+    send-user-text-to-engine: ${SOM_CHAT_SEND_USER_TEXT_TO_ENGINE:false}
     fallback-text: "지금은 잠시 답변이 어려워요. 호흡 루틴을 먼저 해볼까요?"   # engine 실패 시 고정 문구(A_SPEC §8)
     page-size: 30
     max-page-size: 100
@@ -133,7 +133,10 @@ som:
   idempotency:
     retention: 24h            # Idempotency-Key 보존 기간(명세에 값 없음 → 설정값)
   engine:
-    mode: mock                   # mock | real (ADR-002). real 구현은 B가 작성
+    mode: ${SOM_ENGINE_MODE:mock}
+    url: ${SOM_ENGINE_URL:http://127.0.0.1:8000}
+    token: ${SOM_ENGINE_TOKEN:}
+    chat-timeout: 15s
     timeout: 2s                  # engine 호출 1회 타임아웃(A_SPEC §12 — 상한은 설정)
     max-attempts: 2              # 최초 포함 최대 시도 횟수
     pool-size: 4                 # engine 호출 전용 스레드 수
