@@ -2,3 +2,19 @@
 __pycache__/
 .pytest_cache/
 .env
+
+# Local tests and test tooling
+tests/
+test/
+test_*.py
+*_test.py
+conftest.py
+pytest.ini
+requirements-dev.txt
+requirements-test.txt
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+.tox/
+.nox/
