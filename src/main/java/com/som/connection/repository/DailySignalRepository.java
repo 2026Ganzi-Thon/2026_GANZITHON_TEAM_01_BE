@@ -7,6 +7,7 @@ import java.math.BigDecimal;
 import java.sql.Types;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -57,6 +58,28 @@ public class DailySignalRepository {
                         (rs, rowNum) -> rs.getObject(1, OffsetDateTime.class),
                         userId, localDate, source.name(), metric.name())
                 .stream().filter(Objects::nonNull).findFirst();
+    }
+
+    /** 하루치 저장 행 하나(값은 로그에 남기지 않는다). */
+    public record Row(DataSource source, Metric metric, BigDecimal value, OffsetDateTime valueAt, String unit,
+                      Integer hourBucket) {
+        @Override
+        public String toString() {
+            return "Row[source=" + source + ", metric=" + metric + "]";
+        }
+    }
+
+    /** 사용자·날짜의 모든 행(소스·지표·시간대 순). 동의 여부는 호출자가 거른다. */
+    public List<Row> findByUserIdAndLocalDate(Long userId, LocalDate localDate) {
+        return jdbc.query("""
+                        SELECT source, metric_key, value, value_at, unit, hour_bucket FROM daily_signals
+                        WHERE user_id = ? AND local_date = ?
+                        ORDER BY source, metric_key, hour_bucket NULLS FIRST
+                        """,
+                (rs, rowNum) -> new Row(DataSource.valueOf(rs.getString(1)), Metric.valueOf(rs.getString(2)),
+                        rs.getBigDecimal(3), rs.getObject(4, OffsetDateTime.class), rs.getString(5),
+                        (Integer) rs.getObject(6, Integer.class)),
+                userId, localDate);
     }
 
     /**

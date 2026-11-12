@@ -26,6 +26,11 @@ public class ServiceDates {
         return OffsetDateTime.now(clock);
     }
 
+    /** DB에서 읽은 시각을 서비스 시간대 오프셋(+09:00)으로 바꾼다. null은 null. */
+    public OffsetDateTime inServiceZone(OffsetDateTime value) {
+        return value == null ? null : value.atZoneSameInstant(clock.getZone()).toOffsetDateTime();
+    }
+
     public LocalDate toLocalDate(Instant instant) {
         return LocalDate.ofInstant(instant, clock.getZone());
     }

@@ -19,6 +19,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -35,13 +36,15 @@ public class SignalService {
     private final DailySignalRepository signals;
     private final SignalProperties properties;
     private final ServiceDates dates;
+    private final ApplicationEventPublisher events;
 
     public SignalService(SourceConsentChecker consentChecker, DailySignalRepository signals,
-                         SignalProperties properties, ServiceDates dates) {
+                         SignalProperties properties, ServiceDates dates, ApplicationEventPublisher events) {
         this.consentChecker = consentChecker;
         this.signals = signals;
         this.properties = properties;
         this.dates = dates;
+        this.events = events;
     }
 
     @Transactional
@@ -65,6 +68,7 @@ public class SignalService {
                     ConnectionProvider.DEMO, now);
             stored++;
         }
+        events.publishEvent(new SignalsIngestedEvent(userId, request.localDate())); // 커밋 후 스냅샷 재계산(state)
         return new SignalIngestResponse(request.source(), request.localDate(), stored);
     }
 

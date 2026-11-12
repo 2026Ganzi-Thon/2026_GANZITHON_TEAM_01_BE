@@ -39,6 +39,7 @@ class RequiredConsentGateTest {
     @AfterEach
     void cleanUp() {
         jdbc.update("DELETE FROM user_consents WHERE user_id IN (SELECT id FROM users WHERE login_id LIKE 'gate%')");
+        jdbc.update("DELETE FROM fatigue_snapshots WHERE user_id IN (SELECT id FROM users WHERE login_id LIKE 'gate%')");
         jdbc.update("DELETE FROM users WHERE login_id LIKE 'gate%'");
     }
 

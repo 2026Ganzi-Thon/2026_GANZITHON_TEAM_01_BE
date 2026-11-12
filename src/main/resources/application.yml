@@ -91,6 +91,36 @@ som:
     signals:
       # TODO(DECISION): 수집 요청 제한 값 미확정(ADR-008). 아래는 [제안] 값
       per-user:     { capacity: 30, refill-period: 1m }
+  checkin:
+    max-stressors: 1             # TODO(DECISION): Q2 최대 선택 개수 미정(A_SPEC §6). 기본 1
+    max-range-days: 31           # GET /checkins?from=&to= 최대 기간(명세에 값 없음 → 설정값)
+  state:
+    bubble-text:
+      # TODO(DECISION): 말풍선 출처·문구 B 합의 대기(A_SPEC §7). 아래는 [제안] 임시 문구
+      levels:
+        - "오늘 마음이 가벼워 보여요. 이야기 나눠 볼래요?"
+        - "조금 지쳐 보여요. 잠깐 쉬어 갈까요?"
+        - "피로가 쌓였나 봐요. 오늘 이야기를 들려줄래요?"
+        - "많이 지쳤죠. 천천히 같이 쉬어 가요."
+      insufficient: "오늘 마음은 어떤가요? 체크인으로 알려 주세요."
+  insights:
+    allowed-days: [7, 30]        # 마이 기간 기록(A_SPEC §13)
+  idempotency:
+    retention: 24h            # Idempotency-Key 보존 기간(명세에 값 없음 → 설정값)
+  engine:
+    mode: mock                   # mock | real (ADR-002). real 구현은 B가 작성
+    timeout: 2s                  # engine 호출 1회 타임아웃(A_SPEC §12 — 상한은 설정)
+    max-attempts: 2              # 최초 포함 최대 시도 횟수
+    pool-size: 4                 # engine 호출 전용 스레드 수
+    mock:
+      # B 초안(A_SPEC §12) — 확정값 아님. 점수→단계: 0~24=1, 25~49=2, 50~74=3, 75~100=4
+      level-min-scores: [25, 50, 75]
+      wool-kg: [0.8, 1.6, 2.4, 3.2]
+      levels:                    # 단계별 상태·보조 문구(A_SPEC §7 화면 확정 표)
+        - { status-text: "마음이 가벼워요",       sub-text: "지금의 편안함을 느껴보세요." }
+        - { status-text: "조금 지쳐 있어요",      sub-text: "잠깐 쉬어가도 괜찮아요." }
+        - { status-text: "피로가 쌓였어요",       sub-text: "오늘은 나를 먼저 돌봐주세요." }
+        - { status-text: "충분한 쉼이 필요해요",  sub-text: "혼자 애쓰지 않아도 괜찮아요." }
   time:
     zone: Asia/Seoul
   request-id:

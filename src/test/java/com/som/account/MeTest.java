@@ -56,6 +56,7 @@ class MeTest {
     @AfterEach
     void cleanUp() {
         jdbc.update("DELETE FROM user_consents WHERE user_id IN (SELECT id FROM users WHERE login_id LIKE 'me%')");
+        jdbc.update("DELETE FROM fatigue_snapshots WHERE user_id IN (SELECT id FROM users WHERE login_id LIKE 'me%')");
         jdbc.update("DELETE FROM users WHERE login_id LIKE 'me%'");
     }
 
