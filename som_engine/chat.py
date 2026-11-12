@@ -6,6 +6,7 @@ from typing import Literal
 import httpx
 from pydantic import Field
 
+from .evidence import best_changes, describe
 from .models import ChatCard, ChatRequest, ChatResult, Payload
 from .routines import BREATHING
 
@@ -96,12 +97,17 @@ def usable_model_text(result: ModelReply | None) -> str | None:
 def reply(request: ChatRequest) -> ChatResult:
     if request.mode == "GREETING":
         summary = request.weekSummary
-        if summary and summary.recordedDays > 0 and summary.averageLevel is not None:
-            body = f"이번 주 {summary.recordedDays}일 기록의 평균은 {summary.averageLevel:.1f}/4단계예요."
-            return ChatResult(
-                text=f"안녕하세요, 소미예요. {body} 오늘 마음은 어떤가요?",
-                cards=[ChatCard(type="WEEK_SUMMARY", title="이번 주 기록", body=body)],
-            )
+        if summary and summary.recordedDays > 0:
+            changes = best_changes(summary.changes, request.consentedSources)
+            if changes or summary.averageLevel is not None:
+                snippets = [describe(change) for change in changes]
+                if not snippets:
+                    snippets = [f"이번 주 {summary.recordedDays}일 기록의 평균은 {summary.averageLevel:.1f}/4단계예요."]
+                return ChatResult(
+                    text=f"안녕하세요, 소미예요. {snippets[0]} 오늘 마음은 어떤가요?",
+                    cards=[ChatCard(type="WEEK_SUMMARY", title="이번 주 달라진 점" if changes else "이번 주 기록",
+                                    body=" ".join(snippets))],
+                )
         return ChatResult(text="안녕하세요, 소미예요. 오늘 마음은 어떤가요?")
 
     text = (request.userText or "").strip()

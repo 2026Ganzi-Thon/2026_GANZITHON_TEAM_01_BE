@@ -108,17 +108,32 @@ class FatigueResult(Payload):
     calculatedAt: datetime
 
 
-class DailyState(Payload):
+class PeriodSignalChange(SignalChange):
+    changedDays: int = Field(ge=1, le=30)
+
+
+class DailyLevel(Payload):
     localDate: date
     level: Level | None = None
+
+
+class DailyState(DailyLevel):
     score: Score | None = None
     woolDisplayKg: float | None = Field(default=None, gt=0)
+    changes: list[SignalChange] = Field(default_factory=list, max_length=7)
+
+    @model_validator(mode="after")
+    def unique_changes(self):
+        if len({(item.source, item.metric) for item in self.changes}) != len(self.changes):
+            raise ValueError("duplicate daily changes")
+        return self
 
 
 class InsightRequest(Subject):
     from_: date = Field(alias="from")
     to: date
     days: list[DailyState] = Field(max_length=30)
+    consentedSources: set[str] = Field(default_factory=set, max_length=20)
 
     @model_validator(mode="after")
     def validate_period(self):
@@ -137,6 +152,10 @@ class InsightResult(Payload):
     heaviestDate: date | None = None
     heaviestReason: str | None = None
     woolWeightKg: float | None = None
+    statusText: str | None = None
+    subText: str | None = None
+    dailyLevels: list[DailyLevel] = Field(default_factory=list)
+    changes: list[PeriodSignalChange] = Field(default_factory=list)
 
 
 class RoutineRequest(Dated):
@@ -161,6 +180,15 @@ class RoutineResult(Payload):
 class WeekSummary(Payload):
     averageLevel: float | None = Field(default=None, ge=1, le=4)
     recordedDays: int = Field(ge=0, le=7)
+    changes: list[PeriodSignalChange] = Field(default_factory=list, max_length=7)
+
+    @model_validator(mode="after")
+    def consistent_changes(self):
+        if any(change.changedDays > self.recordedDays for change in self.changes):
+            raise ValueError("change count exceeds recorded days")
+        if len({(item.source, item.metric) for item in self.changes}) != len(self.changes):
+            raise ValueError("duplicate period changes")
+        return self
 
 
 class ChatTurn(Payload):
