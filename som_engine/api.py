@@ -2,8 +2,8 @@ from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
-from . import fatigue, insights, routines
-from .models import FatigueRequest, FatigueResult, InsightRequest, InsightResult, RoutineRequest, RoutineResult
+from . import fatigue, insights, routines, chat
+from .models import FatigueRequest, FatigueResult, InsightRequest, InsightResult, RoutineRequest, RoutineResult, ChatRequest, ChatResult
 
 app = FastAPI(title="SOM Backend B", version="0.1.0")
 
@@ -31,3 +31,8 @@ def summarize(request: InsightRequest) -> InsightResult:
 @app.post("/v1/routines/recommend")
 def recommend(request: RoutineRequest) -> RoutineResult:
     return routines.recommend(request)
+
+
+@app.post("/v1/chat/respond")
+def respond(request: ChatRequest) -> ChatResult:
+    return chat.reply(request)
