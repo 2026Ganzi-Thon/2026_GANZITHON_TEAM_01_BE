@@ -41,6 +41,8 @@ import org.springframework.transaction.support.TransactionTemplate;
 @Service
 public class SnapshotService {
 
+    private static final int MAX_ATTEMPTS = 3;
+
     private final UserRepository users;
     private final CheckinRepository checkins;
     private final SourceConsentChecker consents;
@@ -77,15 +79,28 @@ public class SnapshotService {
         this.writeTx.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
     }
 
+    /**
+     * 재계산이 겹치면(체크인·수신·철회·삭제가 동시에) 먼저 시작한 계산이 늦게 저장될 수 있다. 그래서 저장 직전에
+     * 잠금 안에서 입력을 다시 읽어, 계산에 쓴 입력과 다르면 그 결과를 버리고 새 입력으로 다시 계산한다
+     * (철회·삭제된 데이터로 만든 값이 남지 않게, CRITICAL). 계속 바뀌면 MAX_ATTEMPTS 후 현재 스냅샷을 돌려준다.
+     */
     public Optional<FatigueSnapshot> recalculate(Long userId, LocalDate localDate) {
-        FatigueRequest request = readTx.execute(status -> buildRequest(userId, localDate));
-        if (request == null) {
-            return Optional.empty(); // 사용자 없음(삭제됨)
+        for (int attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+            FatigueRequest request = readTx.execute(status -> buildRequest(userId, localDate));
+            if (request == null) {
+                return Optional.empty(); // 사용자 없음(삭제됨)
+            }
+            Optional<FatigueResult> result = gateway.call("fatigue.calculate", () -> engine.calculate(request),
+                    FatigueResultValidator::isValid);
+            SaveOutcome outcome = writeTx.execute(status -> save(userId, localDate, request, result));
+            if (outcome.saved()) {
+                return outcome.snapshot();
+            }
         }
-        Optional<FatigueResult> result = gateway.call("fatigue.calculate", () -> engine.calculate(request),
-                FatigueResultValidator::isValid);
-        return writeTx.execute(status -> save(userId, localDate, result));
+        return readTx.execute(status -> snapshots.findByUserIdAndLocalDate(userId, localDate));
     }
+
+    private record SaveOutcome(boolean saved, Optional<FatigueSnapshot> snapshot) {}
 
     private FatigueRequest buildRequest(Long userId, LocalDate localDate) {
         return users.findById(userId).map(user -> {
@@ -113,18 +128,21 @@ public class SnapshotService {
                 checkin.getSupportNeed() == null ? null : checkin.getSupportNeed().name());
     }
 
-    private Optional<FatigueSnapshot> save(Long userId, LocalDate localDate, Optional<FatigueResult> result) {
+    private SaveOutcome save(Long userId, LocalDate localDate, FatigueRequest used, Optional<FatigueResult> result) {
         locks.lock("snapshot:" + userId + ":" + localDate);
+        if (!used.equals(buildRequest(userId, localDate))) {
+            return new SaveOutcome(false, Optional.empty()); // 계산 중에 입력이 바뀌었다: 버리고 다시 계산
+        }
         Optional<FatigueSnapshot> existing = snapshots.findByUserIdAndLocalDate(userId, localDate);
         if (result.isEmpty()) {
             existing.ifPresent(snapshot -> snapshot.markStale(dates.now()));
-            return existing.map(snapshots::save);
+            return new SaveOutcome(true, existing.map(snapshots::save));
         }
         FatigueResult r = result.get();
         FatigueSnapshot snapshot = existing.orElseGet(() -> FatigueSnapshot.of(userId, localDate));
         snapshot.replace(r.score(), r.level(), r.woolDisplayKg(), r.status(), r.statusText(), r.subText(),
                 r.assetKey(), toJson(r.usedSources()), r.algorithmVersion(), r.calculatedAt(), dates.now());
-        return Optional.of(snapshots.save(snapshot));
+        return new SaveOutcome(true, Optional.of(snapshots.save(snapshot)));
     }
 
     private String toJson(List<String> values) {

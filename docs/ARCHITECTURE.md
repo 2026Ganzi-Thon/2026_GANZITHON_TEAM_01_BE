@@ -14,6 +14,7 @@ src/main/java/com/som/
 ├── journal/      # 마음 정리 기록, 털 깎임 연출 이벤트
 ├── settings/     # 알림 설정, 도움 받을 곳 목록
 ├── account/      # 데이터 삭제·탈퇴·삭제 상태
+├── demo/         # 시연용 데모 계정·데모 연동 시드 (demo 프로필에서만)
 └── engine/       # B 연동 경계. 인터페이스 + DTO + Mock + B(FastAPI) HTTP 클라이언트 (계산 로직은 B 서비스)
 src/main/resources/
 ├── application.yml
