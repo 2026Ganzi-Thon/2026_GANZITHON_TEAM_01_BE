@@ -1,6 +1,7 @@
 package com.som.support;
 
 import com.som.engine.fatigue.mock.MockFatigueEngine;
+import com.som.engine.insight.mock.MockInsightEngine;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
@@ -24,5 +25,11 @@ public class TestSupportConfig {
     @Primary
     public SwitchableFatigueEngine switchableFatigueEngine(MockFatigueEngine delegate) {
         return new SwitchableFatigueEngine(delegate);
+    }
+
+    @Bean
+    @Primary
+    public SwitchableInsightEngine switchableInsightEngine(MockInsightEngine delegate) {
+        return new SwitchableInsightEngine(delegate);
     }
 }
