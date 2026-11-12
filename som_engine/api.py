@@ -1,4 +1,6 @@
-from fastapi import FastAPI, Request
+from typing import Annotated
+
+from fastapi import FastAPI, Request, Path, Response
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
@@ -36,3 +38,9 @@ def recommend(request: RoutineRequest) -> RoutineResult:
 @app.post("/v1/chat/respond")
 def respond(request: ChatRequest) -> ChatResult:
     return chat.reply(request)
+
+
+@app.delete("/v1/subjects/{subject_key}", status_code=204)
+def erase_subject(subject_key: Annotated[str, Path(min_length=1, max_length=128)]) -> Response:
+    # No subject data is persisted by this engine.
+    return Response(status_code=204)
