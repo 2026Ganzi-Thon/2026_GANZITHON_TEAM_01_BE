@@ -195,6 +195,17 @@ class RoutineResult(Payload):
     items: list[RoutineItem] = Field(default_factory=list)
 
 
+class WoolTrimRequest(Dated):
+    journalCompleted: bool
+    alreadyShown: bool = False
+
+
+class WoolTrimResult(Payload):
+    shouldPlay: bool
+    animationKey: Literal["wool_trim"] | None = None
+    message: str | None = None
+
+
 class WeekSummary(Payload):
     averageLevel: float | None = Field(default=None, ge=1, le=4)
     recordedDays: int = Field(ge=0, le=7)
