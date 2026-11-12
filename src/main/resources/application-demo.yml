@@ -1,0 +1,15 @@
+# 시연용 데모 계정·데모 연동 시드(A_SPEC §15 단계 4, ADR-006 provider=demo). demo 프로필에서만 쓴다.
+# 비밀번호는 환경변수 SOM_DEMO_PASSWORD로만 받는다(없으면 시드하지 않음).
+# 아래 값은 데모 입력(체크인·수면·걸음 수)이며 피로 점수는 engine이 계산한다.
+som:
+  demo:
+    login-id: demo1
+    password: ${SOM_DEMO_PASSWORD:}
+    days:                     # 오늘-6 ~ 오늘 (offset 6 → 0)
+      - { offset: 6, mood: CALM,    sleep-onset: "23:30", sleep-wake: "07:00", steps: 8200 }
+      - { offset: 5, mood: OKAY,    sleep-onset: "00:10", sleep-wake: "07:00", steps: 6400 }
+      - { offset: 4, mood: SO_SO,   sleep-onset: "00:40", sleep-wake: "06:50", steps: 5100 }
+      - { offset: 3, mood: ANXIOUS, sleep-onset: "01:30", sleep-wake: "06:40", steps: 3900 }
+      - { offset: 2, mood: TIRED,   sleep-onset: "02:00", sleep-wake: "06:30", steps: 2500 }
+      - { offset: 1, mood: SO_SO,   sleep-onset: "00:30", sleep-wake: "07:10", steps: 4700 }
+      - { offset: 0, mood: OKAY,    sleep-onset: "23:50", sleep-wake: "07:20", steps: 6100 }
