@@ -8,7 +8,9 @@ import com.som.chat.domain.ChatMessage;
 import com.som.chat.dto.ChatMessageResponse;
 import com.som.chat.dto.ChatPage;
 import com.som.chat.dto.ChatTurnResponse;
+import com.som.chat.domain.CardResponse;
 import com.som.chat.repository.ChatMessageRepository;
+import com.som.chat.repository.RecommendationResponseRepository;
 import com.som.common.error.ApiException;
 import com.som.common.error.ErrorCode;
 import com.som.common.time.ServiceDates;
@@ -24,6 +26,7 @@ import java.time.OffsetDateTime;
 import java.time.YearMonth;
 import java.util.Base64;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.data.domain.PageRequest;
@@ -41,6 +44,7 @@ public class ChatService {
 
     private final ChatMessageRepository messages;
     private final ChatReplyWriter writer;
+    private final RecommendationResponseRepository cardResponses;
     private final ChatRequestFactory requests;
     private final ChatEngine engine;
     private final EngineGateway gateway;
@@ -49,11 +53,13 @@ public class ChatService {
     private final ChatProperties properties;
     private final ObjectMapper objectMapper;
 
-    public ChatService(ChatMessageRepository messages, ChatReplyWriter writer, ChatRequestFactory requests,
+    public ChatService(ChatMessageRepository messages, ChatReplyWriter writer,
+                       RecommendationResponseRepository cardResponses, ChatRequestFactory requests,
                        ChatEngine engine, EngineGateway gateway, HelpResourceService helpResources,
                        ServiceDates dates, ChatProperties properties, ObjectMapper objectMapper) {
         this.messages = messages;
         this.writer = writer;
+        this.cardResponses = cardResponses;
         this.requests = requests;
         this.engine = engine;
         this.gateway = gateway;
@@ -100,7 +106,9 @@ public class ChatService {
         boolean more = rows.size() > pageSize;
         List<ChatMessage> items = more ? rows.subList(0, pageSize) : rows;
         String next = more ? encodeCursor(items.get(items.size() - 1).getId()) : null;
-        return new ChatPage(items.stream().map(this::toResponse).toList(), next);
+        Map<Long, CardResponse> answered = cardResponses.findByMessages(userId,
+                items.stream().map(ChatMessage::getId).toList());
+        return new ChatPage(items.stream().map(m -> toResponse(m, answered.get(m.getId()))).toList(), next);
     }
 
     @Transactional(readOnly = true)
@@ -109,8 +117,13 @@ public class ChatService {
     }
 
     public ChatMessageResponse toResponse(ChatMessage m) {
+        return toResponse(m, null);
+    }
+
+    private ChatMessageResponse toResponse(ChatMessage m, CardResponse cardResponse) {
         return new ChatMessageResponse(m.getId(), m.getThreadDate(), m.getRole().name(), m.getMessageType().name(),
-                m.getContent(), payload(m.getPayload()), m.isRiskFlag(), dates.inServiceZone(m.getCreatedAt()));
+                m.getContent(), payload(m.getPayload()), m.isRiskFlag(), dates.inServiceZone(m.getCreatedAt()),
+                cardResponse == null ? null : cardResponse.name());
     }
 
     private JsonNode payload(String json) {

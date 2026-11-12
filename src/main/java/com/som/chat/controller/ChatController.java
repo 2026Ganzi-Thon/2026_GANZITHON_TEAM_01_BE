@@ -1,11 +1,15 @@
 package com.som.chat.controller;
 
 import com.som.auth.web.CurrentUserId;
+import com.som.chat.dto.CardResponseRequest;
+import com.som.chat.dto.CardResponseResult;
 import com.som.chat.dto.ChatMessageRequest;
 import com.som.chat.dto.ChatPage;
 import com.som.chat.dto.ChatTurnResponse;
 import com.som.chat.service.ChatGreetingService;
 import com.som.chat.service.ChatService;
+import com.som.chat.service.RecommendationResponseService;
+import jakarta.validation.Valid;
 import com.som.common.ratelimit.RateLimitProperties;
 import com.som.common.ratelimit.RateLimitedException;
 import com.som.common.ratelimit.RateLimiter;
@@ -16,6 +20,7 @@ import java.util.List;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -33,9 +38,12 @@ public class ChatController {
     private final RateLimitProperties.Chat limits;
     private final ChatGreetingService greetings;
     private final ServiceDates dates;
+    private final RecommendationResponseService cardResponses;
 
     public ChatController(ChatService chatService, RateLimiter rateLimiter, RateLimitProperties rateLimits,
-                          ChatGreetingService greetings, ServiceDates dates) {
+                          ChatGreetingService greetings, ServiceDates dates,
+                          RecommendationResponseService cardResponses) {
+        this.cardResponses = cardResponses;
         this.chatService = chatService;
         this.greetings = greetings;
         this.dates = dates;
@@ -64,6 +72,13 @@ public class ChatController {
             greetings.ensureToday(userId); // 오늘 대화를 처음 열 때 선제 인사(하루 1회)
         }
         return chatService.page(userId, date, cursor, size);
+    }
+
+    /** 추천 카드 응답(지금 해볼게요 / 오늘은 그냥 둘래요). 본인 카드가 아니면 404. */
+    @PostMapping("/recommendations/{messageId}/response")
+    CardResponseResult respond(@CurrentUserId Long userId, @PathVariable Long messageId,
+                               @Valid @RequestBody CardResponseRequest body) {
+        return cardResponses.respond(userId, messageId, body.response());
     }
 
     @GetMapping("/dates")
