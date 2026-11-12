@@ -52,6 +52,11 @@ som:
       AGE_14_PLUS:        { policy-version: "v1" }
       TERMS_OF_SERVICE:   { policy-version: "v1" }
       PRIVACY_COLLECTION: { policy-version: "v1" }
+    gate:
+      exempt-paths:            # 필수 동의 전에도 허용 (계정·약관 API). 삭제·탈퇴 API는 4단계에서 추가
+        - /api/v1/auth/**
+        - /api/v1/me
+        - /api/v1/me/consents
   rate-limit:
     max-tracked-keys: 10000      # 키 저장소 상한(메모리 보호)
     login:

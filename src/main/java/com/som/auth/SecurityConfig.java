@@ -2,7 +2,9 @@ package com.som.auth;
 
 import com.som.auth.repository.UserRepository;
 import com.som.auth.service.LoginUserDetailsService;
+import com.som.consent.service.RequiredConsentChecker;
 import java.util.List;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -13,6 +15,7 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.access.intercept.AuthorizationFilter;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 
 /**
@@ -21,6 +24,7 @@ import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
  */
 @Configuration
 @EnableWebSecurity
+@EnableConfigurationProperties(ConsentGateProperties.class)
 public class SecurityConfig {
 
     /** 인증 없이 호출할 수 있는 공개 API(명시 목록). OpenAPI 문서에서도 공통 401을 붙이지 않는다. */
@@ -36,7 +40,9 @@ public class SecurityConfig {
     };
 
     @Bean
-    SecurityFilterChain securityFilterChain(HttpSecurity http, SecurityErrorHandler errorHandler) throws Exception {
+    SecurityFilterChain securityFilterChain(HttpSecurity http, SecurityErrorHandler errorHandler,
+                                            RequiredConsentChecker consentChecker,
+                                            ConsentGateProperties gateProperties) throws Exception {
         http
                 .formLogin(AbstractHttpConfigurer::disable)
                 .httpBasic(AbstractHttpConfigurer::disable)
@@ -50,7 +56,10 @@ public class SecurityConfig {
                         .anyRequest().authenticated())
                 .exceptionHandling(ex -> ex
                         .authenticationEntryPoint(errorHandler)
-                        .accessDeniedHandler(errorHandler));
+                        .accessDeniedHandler(errorHandler))
+                // 인증·인가 통과 후 필수 약관 게이트(미인증 요청은 AuthorizationFilter에서 이미 401)
+                .addFilterAfter(new RequiredConsentGateFilter(consentChecker, gateProperties, errorHandler),
+                        AuthorizationFilter.class);
         return http.build();
     }
 
