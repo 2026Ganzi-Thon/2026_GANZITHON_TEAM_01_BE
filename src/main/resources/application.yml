@@ -52,6 +52,24 @@ som:
       AGE_14_PLUS:        { policy-version: "v1" }
       TERMS_OF_SERVICE:   { policy-version: "v1" }
       PRIVACY_COLLECTION: { policy-version: "v1" }
+    sources:
+      # 항목별 동의 시트 고지 내용(A_SPEC §5). 연결·철회 시 이 값을 user_consents에 그대로 기록한다.
+      # TODO(DECISION): 연동 동의 정책 버전 미확정. 아래 v1은 [제안] 값
+      SLEEP:
+        policy-version: "v1"
+        items: ["잠든 시각", "깬 시각"]
+        purpose: "평소와 달라졌는지 살피는 데만 써요"
+        retention: "TBD"          # TODO(DECISION): 보관 기간 미정(A_SPEC §5). 탈퇴 시 즉시 삭제는 확정
+        sensitive: true           # 건강 정보 · 별도 동의 (화면 확정)
+      STEPS:
+        policy-version: "v1"
+        items: ["하루 걸음 수"]
+        purpose: "TBD"            # TODO(DECISION): 화면 문구 미확인
+        retention: "TBD"          # TODO(DECISION)
+        sensitive: false          # TODO(DECISION): 걸음 수의 건강정보 분류 미정(A_SPEC §5)
+      SCREEN_TIME:       { policy-version: "v1", items: ["시간대별 총 사용 시간"], purpose: "TBD", retention: "TBD", sensitive: false }  # TODO(DECISION): purpose·retention
+      CALENDAR_PERSONAL: { policy-version: "v1", items: ["일정 수", "바쁜 시간대"], purpose: "TBD", retention: "TBD", sensitive: false }   # TODO(DECISION)
+      CALENDAR_WORK:     { policy-version: "v1", items: ["바쁜 정도"], purpose: "TBD", retention: "TBD", sensitive: false }              # TODO(DECISION): 화면 잘림
     gate:
       exempt-paths:            # 필수 동의 전에도 허용 (계정·약관 API). 삭제·탈퇴 API는 4단계에서 추가
         - /api/v1/auth/**

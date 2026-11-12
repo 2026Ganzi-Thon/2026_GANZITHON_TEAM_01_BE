@@ -16,4 +16,8 @@ public interface UserConsentRepository extends Repository<UserConsent, Long> {
     /** 필수 약관(source 없음)의 현재 상태 = 가장 최근 changed_at 행. 같은 시각이면 나중에 INSERT된 행. */
     Optional<UserConsent> findFirstByUserIdAndConsentTypeAndSourceIsNullOrderByChangedAtDescIdDesc(
             Long userId, ConsentType consentType);
+
+    /** 선택 연동 동의(source 있음)의 현재 상태 = 해당 source의 가장 최근 changed_at 행. 같은 시각이면 나중에 INSERT된 행. */
+    Optional<UserConsent> findFirstByUserIdAndConsentTypeAndSourceOrderByChangedAtDescIdDesc(
+            Long userId, ConsentType consentType, String source);
 }

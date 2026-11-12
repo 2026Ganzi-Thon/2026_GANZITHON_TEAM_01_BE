@@ -124,6 +124,55 @@ class MigrationTest {
                 .isInstanceOf(DataIntegrityViolationException.class);
     }
 
+    @Test
+    void connectionsTableHasExpectedColumns() {
+        List<Map<String, Object>> rows = jdbc.queryForList("""
+                SELECT column_name, data_type, is_nullable, character_maximum_length
+                FROM information_schema.columns
+                WHERE table_schema = current_schema() AND table_name = 'connections'
+                """);
+        Map<String, Map<String, Object>> columns = rows.stream()
+                .collect(Collectors.toMap(r -> (String) r.get("column_name"), r -> r));
+
+        assertThat(columns).containsOnlyKeys(
+                "id", "user_id", "source", "provider", "status", "connected_at", "revoked_at");
+        assertColumn(columns, "id", "bigint", "NO", null);
+        assertColumn(columns, "user_id", "bigint", "NO", null);
+        assertColumn(columns, "source", "character varying", "NO", 40);
+        assertColumn(columns, "provider", "character varying", "NO", 20);
+        assertColumn(columns, "status", "character varying", "NO", 20);
+        assertColumn(columns, "connected_at", "timestamp with time zone", "YES", null);
+        assertColumn(columns, "revoked_at", "timestamp with time zone", "YES", null);
+    }
+
+    @Test
+    void connectionIsUniquePerUserAndSource() {
+        insertUser("conn-user", "conn-subject");
+        Long userId = jdbc.queryForObject("SELECT id FROM users WHERE login_id = 'conn-user'", Long.class);
+        jdbc.update(INSERT_CONNECTION, userId, "CONNECTED");
+
+        assertThatThrownBy(() -> jdbc.update(INSERT_CONNECTION, userId, "REVOKED"))
+                .isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    void connectionRequiresExistingUser() {
+        assertThatThrownBy(() -> jdbc.update(INSERT_CONNECTION, -1L, "CONNECTED"))
+                .isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    void connectionStatusIsLimitedToConnectedOrRevoked() {
+        insertUser("conn-user2", "conn-subject2");
+        Long userId = jdbc.queryForObject("SELECT id FROM users WHERE login_id = 'conn-user2'", Long.class);
+
+        assertThatThrownBy(() -> jdbc.update(INSERT_CONNECTION, userId, "NOT_CONNECTED"))
+                .isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    private static final String INSERT_CONNECTION =
+            "INSERT INTO connections (user_id, source, provider, status) VALUES (?, 'SLEEP', 'DEMO', ?)";
+
     private void insertUser(String loginId, String subjectKey) {
         jdbc.update(INSERT_USER, loginId, "hash", subjectKey, "LOCAL", OffsetDateTime.now());
     }

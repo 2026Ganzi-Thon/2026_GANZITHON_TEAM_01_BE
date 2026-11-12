@@ -31,7 +31,7 @@ public class UserConsent {
     @Column(name = "consent_type", nullable = false, length = 40, updatable = false)
     private ConsentType consentType;
 
-    /** DATA_SOURCE일 때만 값이 있다(step 8). */
+    /** DATA_SOURCE일 때만 값이 있다(com.som.connection.domain.DataSource 이름). */
     @Column(name = "source", length = 40, updatable = false)
     private String source;
 
@@ -60,6 +60,23 @@ public class UserConsent {
         UserConsent consent = new UserConsent();
         consent.userId = userId;
         consent.consentType = key.consentType();
+        consent.granted = granted;
+        consent.policyVersion = policyVersion;
+        consent.changedAt = changedAt;
+        return consent;
+    }
+
+    /** 선택 연동 동의 한 행. items·purpose·retention·policyVersion은 서버 설정값(고지 내용)을 넣는다. */
+    public static UserConsent dataSource(Long userId, String source, String itemsJson, String purpose,
+                                         String retention, boolean granted, String policyVersion,
+                                         OffsetDateTime changedAt) {
+        UserConsent consent = new UserConsent();
+        consent.userId = userId;
+        consent.consentType = ConsentType.DATA_SOURCE;
+        consent.source = source;
+        consent.items = itemsJson;
+        consent.purpose = purpose;
+        consent.retention = retention;
         consent.granted = granted;
         consent.policyVersion = policyVersion;
         consent.changedAt = changedAt;
