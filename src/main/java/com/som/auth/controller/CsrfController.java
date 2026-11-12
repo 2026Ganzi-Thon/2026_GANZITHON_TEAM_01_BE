@@ -1,5 +1,6 @@
-package com.som.auth;
+package com.som.auth.controller;
 
+import com.som.auth.dto.CsrfTokenResponse;
 import org.springframework.security.web.csrf.CsrfToken;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;

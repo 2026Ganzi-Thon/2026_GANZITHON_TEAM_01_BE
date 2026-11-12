@@ -1,4 +1,4 @@
-package com.som.connection;
+package com.som.connection.controller;
 
 import com.som.auth.web.CurrentUserId;
 import com.som.connection.domain.DataSource;

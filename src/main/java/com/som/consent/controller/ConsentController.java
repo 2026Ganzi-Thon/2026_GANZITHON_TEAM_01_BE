@@ -1,4 +1,4 @@
-package com.som.consent;
+package com.som.consent.controller;
 
 import com.som.auth.web.CurrentUserId;
 import com.som.consent.dto.ConsentChangeRequest;

@@ -1,5 +1,6 @@
-package com.som.auth;
+package com.som.auth.controller;
 
+import com.som.auth.SessionUser;
 import com.som.auth.dto.LoginRequest;
 import com.som.auth.dto.LoginResponse;
 import com.som.auth.dto.SignupRequest;
