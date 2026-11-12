@@ -115,6 +115,8 @@ som:
     fallback-text: "지금은 잠시 답변이 어려워요. 호흡 루틴을 먼저 해볼까요?"   # engine 실패 시 고정 문구(A_SPEC §8)
     page-size: 30
     max-page-size: 100
+  notification:
+    default-enabled: false       # 설정 행이 없을 때 기본값(발송은 P1, A_SPEC §10)
   insights:
     allowed-days: [7, 30]        # 마이 기간 기록(A_SPEC §13)
   routine:
