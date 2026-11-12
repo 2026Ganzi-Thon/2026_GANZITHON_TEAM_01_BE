@@ -55,3 +55,6 @@ som:
 logging:
   pattern:
     level: "%5p [%X{requestId:-}]"
+  level:
+    # DaoAuthenticationProvider는 DEBUG에서 실패한 loginId를 로그에 쓴다 → 전역 DEBUG에서도 남지 않게 고정
+    org.springframework.security.authentication: INFO

@@ -7,6 +7,7 @@ public enum ErrorCode {
     VALIDATION_ERROR(HttpStatus.BAD_REQUEST, "입력값을 확인해 주세요."),
     MALFORMED_REQUEST(HttpStatus.BAD_REQUEST, "요청 형식이 올바르지 않아요."),
     UNAUTHORIZED(HttpStatus.UNAUTHORIZED, "로그인이 필요해요."),
+    INVALID_CREDENTIALS(HttpStatus.UNAUTHORIZED, "아이디 또는 비밀번호가 올바르지 않아요."),
     FORBIDDEN(HttpStatus.FORBIDDEN, "접근 권한이 없어요."),
     CONSENT_REQUIRED(HttpStatus.FORBIDDEN, "필요한 동의를 먼저 완료해 주세요."),
     CSRF_INVALID(HttpStatus.FORBIDDEN, "보안 확인이 만료됐어요. 새로고침 후 다시 시도해 주세요."),

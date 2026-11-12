@@ -1,5 +1,7 @@
 package com.som.common.web;
 
+import com.som.auth.SecurityConfig;
+import com.som.auth.web.CurrentUserId;
 import com.som.common.error.ErrorResponse;
 import io.swagger.v3.core.converter.ModelConverters;
 import io.swagger.v3.oas.models.Components;
@@ -12,7 +14,9 @@ import io.swagger.v3.oas.models.responses.ApiResponse;
 import io.swagger.v3.oas.models.responses.ApiResponses;
 import io.swagger.v3.oas.models.security.SecurityScheme;
 import java.util.Map;
+import org.springdoc.core.customizers.OpenApiCustomizer;
 import org.springdoc.core.customizers.OperationCustomizer;
+import org.springdoc.core.utils.SpringDocUtils;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.info.BuildProperties;
 import org.springframework.context.annotation.Bean;
@@ -51,6 +55,11 @@ public class OpenApiConfig {
                 .components(components);
     }
 
+    static {
+        // 세션에서 채우는 인자이므로 문서의 요청 파라미터로 노출하지 않는다.
+        SpringDocUtils.getConfig().addAnnotationsToIgnore(CurrentUserId.class);
+    }
+
     /** 모든 operation에 공통 에러 응답(401·403·500)을 ErrorResponse 스키마로 붙인다. */
     @Bean
     OperationCustomizer commonErrorResponses() {
@@ -63,6 +72,21 @@ public class OpenApiConfig {
                             org.springframework.http.MediaType.APPLICATION_JSON_VALUE,
                             new MediaType().schema(new Schema<>().$ref(ERROR_REF))))));
             return operation;
+        };
+    }
+
+    /** 인증 없이 허용하는 공개 API(SecurityConfig.PUBLIC_API_PATHS)에서는 "로그인이 필요합니다" 401을 뺀다. */
+    @Bean
+    OpenApiCustomizer publicPathsWithoutUnauthorized() {
+        return openApi -> {
+            if (openApi.getPaths() == null) {
+                return;
+            }
+            openApi.getPaths().forEach((path, item) -> {
+                if (SecurityConfig.PUBLIC_API_PATHS.contains(path)) {
+                    item.readOperations().forEach(operation -> operation.getResponses().remove("401"));
+                }
+            });
         };
     }
 }

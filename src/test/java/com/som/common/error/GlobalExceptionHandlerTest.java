@@ -62,6 +62,7 @@ class GlobalExceptionHandlerTest {
         assertThat(ErrorCode.VALIDATION_ERROR.status().value()).isEqualTo(400);
         assertThat(ErrorCode.MALFORMED_REQUEST.status().value()).isEqualTo(400);
         assertThat(ErrorCode.UNAUTHORIZED.status().value()).isEqualTo(401);
+        assertThat(ErrorCode.INVALID_CREDENTIALS.status().value()).isEqualTo(401);
         assertThat(ErrorCode.FORBIDDEN.status().value()).isEqualTo(403);
         assertThat(ErrorCode.CONSENT_REQUIRED.status().value()).isEqualTo(403);
         assertThat(ErrorCode.NOT_FOUND.status().value()).isEqualTo(404);
@@ -72,7 +73,7 @@ class GlobalExceptionHandlerTest {
         assertThat(ErrorCode.ENGINE_UNAVAILABLE.status().value()).isEqualTo(503);
         assertThat(ErrorCode.CSRF_INVALID.status().value()).isEqualTo(403);
         assertThat(ErrorCode.UNSUPPORTED_MEDIA_TYPE.status().value()).isEqualTo(415);
-        assertThat(ErrorCode.values()).hasSize(13);
+        assertThat(ErrorCode.values()).hasSize(14);
         for (ErrorCode code : ErrorCode.values()) {
             assertThat(code.defaultMessage()).isNotBlank();
         }

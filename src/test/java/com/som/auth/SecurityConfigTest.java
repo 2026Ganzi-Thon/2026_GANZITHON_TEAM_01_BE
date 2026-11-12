@@ -19,14 +19,20 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.web.server.Cookie.SameSite;
 import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.RequestBuilder;
 
+/*
+ * 새 컨텍스트로 실행한다: 같은 캐시 컨텍스트를 쓰는 다른 테스트가 spring-security-test의 csrf()를 쓰면
+ * CsrfFilter의 저장소가 세션 저장소(X-CSRF-TOKEN, 쿠키 없음)로 영구 교체되어 이 클래스의 쿠키 검증이 실행 순서에 따라 깨진다.
+ */
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
+@DirtiesContext(classMode = DirtiesContext.ClassMode.BEFORE_CLASS)
 class SecurityConfigTest {
 
     private static final String PROTECTED = "/api/v1/me";
@@ -132,9 +138,11 @@ class SecurityConfigTest {
     }
 
     @Test
-    void 인증불필요_경로_auth와_error는_401이_아니다() throws Exception {
-        assertThat(mockMvc.perform(get("/api/v1/auth/no-such")).andReturn().getResponse().getStatus())
+    void 인증불필요_auth_경로는_명시목록만이고_나머지_auth_경로는_401() throws Exception {
+        assertThat(mockMvc.perform(get(CSRF)).andReturn().getResponse().getStatus()).isEqualTo(200);
+        assertThat(mockMvc.perform(get("/api/v1/auth/login")).andReturn().getResponse().getStatus())
                 .isNotEqualTo(401);
+        expectError(get("/api/v1/auth/no-such"), 401, ErrorCode.UNAUTHORIZED);
     }
 
     @Test
