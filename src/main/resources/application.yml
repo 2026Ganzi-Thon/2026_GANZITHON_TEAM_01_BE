@@ -46,6 +46,12 @@ som:
       max-length: 12           # TODO(DECISION): 화면 확정값이나 보안상 낮음 → 확대 권고(A_SPEC §3, §17-9)
       require-letter: true     # TODO(DECISION): 조합 규칙 미확정. 임시 기본값 = 영문·숫자 각 1자 이상
       require-digit: true
+  consent:
+    required:
+      # TODO(DECISION): 약관 정책 버전 미확정. 아래는 [제안] 값
+      AGE_14_PLUS:        { policy-version: "v1" }
+      TERMS_OF_SERVICE:   { policy-version: "v1" }
+      PRIVACY_COLLECTION: { policy-version: "v1" }
   rate-limit:
     max-tracked-keys: 10000      # 키 저장소 상한(메모리 보호)
     login:

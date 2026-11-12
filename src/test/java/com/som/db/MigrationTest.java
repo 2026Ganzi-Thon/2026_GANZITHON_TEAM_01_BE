@@ -83,6 +83,47 @@ class MigrationTest {
                 .isInstanceOf(DataIntegrityViolationException.class);
     }
 
+    @Test
+    void userConsentsTableHasExpectedColumnsAndIndex() {
+        List<Map<String, Object>> rows = jdbc.queryForList("""
+                SELECT column_name, data_type, is_nullable, character_maximum_length
+                FROM information_schema.columns
+                WHERE table_schema = current_schema() AND table_name = 'user_consents'
+                """);
+        Map<String, Map<String, Object>> columns = rows.stream()
+                .collect(Collectors.toMap(r -> (String) r.get("column_name"), r -> r));
+
+        assertThat(columns).containsOnlyKeys(
+                "id", "user_id", "consent_type", "source", "items", "purpose",
+                "retention", "is_granted", "policy_version", "changed_at");
+        assertColumn(columns, "id", "bigint", "NO", null);
+        assertColumn(columns, "user_id", "bigint", "NO", null);
+        assertColumn(columns, "consent_type", "character varying", "NO", 40);
+        assertColumn(columns, "source", "character varying", "YES", 40);
+        assertColumn(columns, "items", "character varying", "YES", 1000);
+        assertColumn(columns, "purpose", "character varying", "YES", 500);
+        assertColumn(columns, "retention", "character varying", "YES", 200);
+        assertColumn(columns, "is_granted", "boolean", "NO", null);
+        assertColumn(columns, "policy_version", "character varying", "NO", 40);
+        assertColumn(columns, "changed_at", "timestamp with time zone", "NO", null);
+
+        String indexDef = jdbc.queryForObject("""
+                SELECT indexdef FROM pg_indexes
+                WHERE schemaname = current_schema() AND tablename = 'user_consents'
+                  AND indexname = 'ix_user_consents_user_type_source_changed'
+                """, String.class);
+        assertThat(indexDef).contains("(user_id, consent_type, source, changed_at)");
+    }
+
+    @Test
+    void userConsentRequiresExistingUser() {
+        assertThatThrownBy(() -> jdbc.update("""
+                INSERT INTO user_consents (user_id, consent_type, is_granted, policy_version, changed_at)
+                VALUES (?, 'AGE_14_PLUS', true, 'v1', ?)
+                """, -1L, OffsetDateTime.now()))
+                .isInstanceOf(DataIntegrityViolationException.class);
+    }
+
     private void insertUser(String loginId, String subjectKey) {
         jdbc.update(INSERT_USER, loginId, "hash", subjectKey, "LOCAL", OffsetDateTime.now());
     }
