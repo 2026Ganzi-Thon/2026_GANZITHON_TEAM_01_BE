@@ -91,6 +91,8 @@ som:
     signals:
       # TODO(DECISION): 수집 요청 제한 값 미확정(ADR-008). 아래는 [제안] 값
       per-user:     { capacity: 30, refill-period: 1m }
+  idempotency:
+    retention: 24h               # Idempotency-Key 보존 기간(명세에 값 없음 → 설정값)
   engine:
     mode: mock                   # mock | real (ADR-002). real 구현은 B가 작성
     mock:
