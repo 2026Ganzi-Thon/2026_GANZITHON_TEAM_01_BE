@@ -34,4 +34,19 @@ curl -sS http://127.0.0.1:8000/v1/fatigue/calculate \
 - 피로도 가중치와 단계 경계는 `som_engine/policy.py`에 둔 초안이다. 가용 지표만으로 가중치를 다시 나눈다. 입력이 없으면 `INSUFFICIENT_DATA`와 `null` 점수를 반환한다.
 - 수면·사용시간의 개인 기준선은 호출자가 최근 유효 기록으로 집계해 `baseline`으로 보낸다. 각 지표에 유효 기록이 5일 이상 있어야 개인값을 쓰고, 그보다 적으면 공통 기준을 쓴다. 연동 동의가 없는 지표는 계산에서 제외한다.
 - 기간 요약의 `woolWeightKg`는 기간 내 마지막 유효 기록의 값이다. 털 깎임 연출은 점수에 반영하지 않는다.
-- 소미는 기본적으로 검토 가능한 고정 문구를 사용한다. `SOM_OLLAMA_MODEL`에 로컬 Ollama에 설치한 모델 이름을 지정하면 현재 메시지의 의도 분류를 로컬 모델에 요청한다. 모델은 분류값만 반환하고, 오류 시 고정 문구로 처리한다. 키워드와 모델 분류는 MVP 안전 분기이며 운영 전 실제 사례 검증이 필요하다. [Ollama API](https://docs.ollama.com/api/generate)
+## 소미 AI 대화
+
+로컬 Ollama를 실행하고 사용할 모델을 내려받은 뒤, 서버를 아래와 같이 실행한다. 모델명은 `ollama list`로 확인한다.
+
+```sh
+SOM_OLLAMA_MODEL='설치한-모델명' \
+  .venv/bin/python -m uvicorn som_engine.api:app --host 127.0.0.1 --port 8000 --no-access-log
+```
+
+```sh
+curl -sS http://127.0.0.1:8000/v1/chat/respond \
+  -H 'Content-Type: application/json' \
+  -d '{"subjectKey":"demo","localDate":"2026-11-12","mode":"REPLY","userText":"오늘 발표가 잘 안 풀려서 자꾸 생각나요.","recentMessages":[{"role":"SOMI","text":"오늘 가장 마음에 남는 일은 뭐예요?"}]}'
+```
+
+모델이 현재 메시지와 최근 대화 최대 6턴을 참고해 소미 답변을 생성한다. 모델에 보내는 사용자 데이터는 해당 대화 내용으로 제한한다. 명시적인 위기 신호는 모델 호출 전에 별도 응답으로 처리한다. 모델이 위기 신호를 반환한 경우에도 별도 응답을 사용한다. 설정이 없거나 모델 호출이 실패하거나 응답 검증을 통과하지 못하면 기본 문구로 응답한다. 운영 전에는 모델별 대화 품질과 안전 분기를 검증해야 한다. [Ollama Chat API](https://docs.ollama.com/api/chat)
