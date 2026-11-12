@@ -39,6 +39,7 @@ class SignalIngestDisabledTest {
         jdbc.update("DELETE FROM daily_signals WHERE user_id IN " + ids);
         jdbc.update("DELETE FROM connections WHERE user_id IN " + ids);
         jdbc.update("DELETE FROM user_consents WHERE user_id IN " + ids);
+        jdbc.update("DELETE FROM fatigue_snapshots WHERE user_id IN (SELECT id FROM users WHERE login_id LIKE 'sd%')");
         jdbc.update("DELETE FROM users WHERE login_id LIKE 'sd%'");
     }
 

@@ -63,6 +63,7 @@ class RequiredConsentTest {
     void cleanUp() {
         // 테스트 정리용 삭제. 애플리케이션 코드에는 user_consents DELETE가 없다.
         jdbc.update("DELETE FROM user_consents WHERE user_id IN (SELECT id FROM users WHERE login_id LIKE 'rc%')");
+        jdbc.update("DELETE FROM fatigue_snapshots WHERE user_id IN (SELECT id FROM users WHERE login_id LIKE 'rc%')");
         jdbc.update("DELETE FROM users WHERE login_id LIKE 'rc%'");
     }
 

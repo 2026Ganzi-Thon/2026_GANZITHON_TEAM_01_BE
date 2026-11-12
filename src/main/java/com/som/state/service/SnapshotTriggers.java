@@ -1,6 +1,9 @@
 package com.som.state.service;
 
 import com.som.checkin.service.CheckinSubmittedEvent;
+import com.som.common.time.ServiceDates;
+import com.som.connection.service.SignalsIngestedEvent;
+import com.som.connection.service.SourceRevokedEvent;
 import java.time.LocalDate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -18,14 +21,27 @@ public class SnapshotTriggers {
     private static final Logger log = LoggerFactory.getLogger(SnapshotTriggers.class);
 
     private final SnapshotService snapshotService;
+    private final ServiceDates dates;
 
-    public SnapshotTriggers(SnapshotService snapshotService) {
+    public SnapshotTriggers(SnapshotService snapshotService, ServiceDates dates) {
         this.snapshotService = snapshotService;
+        this.dates = dates;
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void onCheckinSubmitted(CheckinSubmittedEvent event) {
         recalculate("checkin", event.userId(), event.localDate());
+    }
+
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void onSignalsIngested(SignalsIngestedEvent event) {
+        recalculate("signals", event.userId(), event.localDate());
+    }
+
+    /** 철회된 소스는 SnapshotService가 이미 제외한다. 오늘 상태에서 바로 빠지도록 오늘만 다시 계산한다. */
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void onSourceRevoked(SourceRevokedEvent event) {
+        recalculate("revoke", event.userId(), dates.today());
     }
 
     private void recalculate(String trigger, Long userId, LocalDate localDate) {

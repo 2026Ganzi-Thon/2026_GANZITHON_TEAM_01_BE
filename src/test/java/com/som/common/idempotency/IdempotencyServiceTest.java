@@ -45,6 +45,7 @@ class IdempotencyServiceTest {
     @AfterEach
     void cleanUp() {
         jdbc.update("DELETE FROM idempotency_keys WHERE user_id IN (?, ?)", userA, userB);
+        jdbc.update("DELETE FROM fatigue_snapshots WHERE user_id IN (SELECT id FROM users WHERE login_id LIKE 'idem%')");
         jdbc.update("DELETE FROM users WHERE login_id LIKE 'idem%'");
     }
 

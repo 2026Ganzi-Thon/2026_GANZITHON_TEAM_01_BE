@@ -40,6 +40,7 @@ class CheckinRepositoryTest {
         String ids = "(SELECT id FROM users WHERE login_id LIKE 'ckr%')";
         jdbc.update("DELETE FROM checkin_stressors WHERE checkin_id IN (SELECT id FROM checkins WHERE user_id IN " + ids + ")");
         jdbc.update("DELETE FROM checkins WHERE user_id IN " + ids);
+        jdbc.update("DELETE FROM fatigue_snapshots WHERE user_id IN (SELECT id FROM users WHERE login_id LIKE 'ckr%')");
         jdbc.update("DELETE FROM users WHERE login_id LIKE 'ckr%'");
     }
 
