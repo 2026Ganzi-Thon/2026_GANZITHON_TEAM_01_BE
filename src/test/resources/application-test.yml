@@ -22,3 +22,5 @@ som:
     chat:
       per-user-minute: { capacity: 100000, refill-period: 1m }
       per-user-day:    { capacity: 100000, refill-period: 1d }
+    deletion:
+      per-user:        { capacity: 100000, refill-period: 1m }
