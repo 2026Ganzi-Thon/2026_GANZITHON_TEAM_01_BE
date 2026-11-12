@@ -46,4 +46,10 @@ public class TestSupportConfig {
     public SwitchableChatEngine switchableChatEngine(MockChatEngine delegate) {
         return new SwitchableChatEngine(delegate);
     }
+
+    @Bean
+    @Primary
+    public SwitchableEngineDataEraser switchableEngineDataEraser() {
+        return new SwitchableEngineDataEraser();
+    }
 }
