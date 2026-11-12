@@ -36,6 +36,7 @@ public class AuthController {
     private final AuthService authService;
     private final RateLimiter rateLimiter;
     private final RateLimitProperties.Login loginLimits;
+    private final RateLimitProperties.Signup signupLimits;
     private final SessionAuthenticationStrategy sessionStrategy = new ChangeSessionIdAuthenticationStrategy();
     private final SecurityContextRepository contextRepository = new HttpSessionSecurityContextRepository();
     private final SecurityContextHolderStrategy holder = SecurityContextHolder.getContextHolderStrategy();
@@ -45,6 +46,7 @@ public class AuthController {
         this.authService = authService;
         this.rateLimiter = rateLimiter;
         this.loginLimits = rateLimits.login();
+        this.signupLimits = rateLimits.signup();
     }
 
     @PostMapping("/login")
@@ -73,6 +75,11 @@ public class AuthController {
     @PostMapping("/signup")
     @ResponseStatus(HttpStatus.CREATED)
     SignupResponse signup(@RequestBody SignupRequest body, HttpServletRequest request, HttpServletResponse response) {
+        // 해시 계산 전에 검사(대량 가입으로 CPU 소모 차단). IP는 로그인과 같이 remoteAddr만 쓴다.
+        RateLimiter.Decision byIp = rateLimiter.tryConsume("signup:ip:" + request.getRemoteAddr(), signupLimits.perIp());
+        if (!byIp.allowed()) {
+            throw new RateLimitedException(byIp.retryAfterSeconds());
+        }
         Authentication auth = authService.signup(body.loginId(), body.password(), body.passwordConfirm());
         establishSession(auth, request, response);
         return new SignupResponse(body.loginId());

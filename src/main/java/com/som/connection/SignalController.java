@@ -1,6 +1,9 @@
 package com.som.connection;
 
 import com.som.auth.web.CurrentUserId;
+import com.som.common.ratelimit.RateLimitProperties;
+import com.som.common.ratelimit.RateLimitedException;
+import com.som.common.ratelimit.RateLimiter;
 import com.som.connection.dto.SignalIngestRequest;
 import com.som.connection.dto.SignalIngestResponse;
 import com.som.connection.service.SignalService;
@@ -21,13 +24,21 @@ import org.springframework.web.bind.annotation.RestController;
 public class SignalController {
 
     private final SignalService signalService;
+    private final RateLimiter rateLimiter;
+    private final RateLimitProperties.Signals limits;
 
-    public SignalController(SignalService signalService) {
+    public SignalController(SignalService signalService, RateLimiter rateLimiter, RateLimitProperties rateLimits) {
         this.signalService = signalService;
+        this.rateLimiter = rateLimiter;
+        this.limits = rateLimits.signals();
     }
 
     @PostMapping
     SignalIngestResponse ingest(@CurrentUserId Long userId, @Valid @RequestBody SignalIngestRequest request) {
+        RateLimiter.Decision decision = rateLimiter.tryConsume("signals:user:" + userId, limits.perUser());
+        if (!decision.allowed()) {
+            throw new RateLimitedException(decision.retryAfterSeconds());
+        }
         return signalService.ingest(userId, request);
     }
 }

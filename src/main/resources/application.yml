@@ -85,6 +85,12 @@ som:
       # TODO(DECISION): 로그인 요청 제한 값 미확정(A_SPEC §3·§11). 아래는 [제안] 값
       per-ip:       { capacity: 20, refill-period: 1m }
       per-login-id: { capacity: 5,  refill-period: 5m }
+    signup:
+      # TODO(DECISION): 가입 요청 제한 값 미확정(ADR-008 목록 밖, 리뷰 반영). 아래는 [제안] 값
+      per-ip:       { capacity: 10, refill-period: 1h }
+    signals:
+      # TODO(DECISION): 수집 요청 제한 값 미확정(ADR-008). 아래는 [제안] 값
+      per-user:     { capacity: 30, refill-period: 1m }
   time:
     zone: Asia/Seoul
   request-id:

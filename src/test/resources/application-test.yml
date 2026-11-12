@@ -14,3 +14,8 @@ som:
       # 제한 동작은 LoginRateLimitTest가 작은 값으로 덮어써서 검증한다.
       per-ip:       { capacity: 100000, refill-period: 1m }
       per-login-id: { capacity: 100000, refill-period: 1m }
+    # 가입·수신도 같은 이유로 크게 둔다. 제한 동작은 SignupRateLimitTest·SignalRateLimitTest가 검증한다.
+    signup:
+      per-ip:       { capacity: 100000, refill-period: 1m }
+    signals:
+      per-user:     { capacity: 100000, refill-period: 1m }
