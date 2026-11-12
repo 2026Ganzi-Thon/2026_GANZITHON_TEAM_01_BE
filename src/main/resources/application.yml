@@ -36,6 +36,16 @@ springdoc:
   paths-to-match: /api/**   # 공개 API만 문서화 (테스트 전용 /test/** 등 제외)
 
 som:
+  auth:
+    login-id:
+      min-length: 4
+      max-length: 13
+      pattern: "^[a-z0-9]+$"   # TODO(DECISION): 아이디 허용 문자 미확정(A_SPEC §3). 임시 기본값 = 영문 소문자+숫자
+    password:
+      min-length: 10
+      max-length: 12           # TODO(DECISION): 화면 확정값이나 보안상 낮음 → 확대 권고(A_SPEC §3, §17-9)
+      require-letter: true     # TODO(DECISION): 조합 규칙 미확정. 임시 기본값 = 영문·숫자 각 1자 이상
+      require-digit: true
   time:
     zone: Asia/Seoul
   request-id:
