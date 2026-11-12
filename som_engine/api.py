@@ -2,8 +2,8 @@ from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
-from . import fatigue
-from .models import FatigueRequest, FatigueResult
+from . import fatigue, insights
+from .models import FatigueRequest, FatigueResult, InsightRequest, InsightResult
 
 app = FastAPI(title="SOM Backend B", version="0.1.0")
 
@@ -21,3 +21,8 @@ def health() -> dict[str, str]:
 @app.post("/v1/fatigue/calculate")
 def calculate(request: FatigueRequest) -> FatigueResult:
     return fatigue.calculate(request)
+
+
+@app.post("/v1/insights/summarize")
+def summarize(request: InsightRequest) -> InsightResult:
+    return insights.summarize(request)
