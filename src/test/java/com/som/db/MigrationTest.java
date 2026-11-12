@@ -68,6 +68,24 @@ class MigrationTest {
     }
 
     @Test
+    void phase2MigrationsCreateIdempotencyAndCheckinTables() {
+        List<String> tables = jdbc.queryForList("""
+                SELECT table_name FROM information_schema.tables
+                WHERE table_schema = current_schema()
+                  AND table_name IN ('idempotency_keys', 'checkins', 'checkin_stressors')
+                """, String.class);
+        assertThat(tables).containsExactlyInAnyOrder("idempotency_keys", "checkins", "checkin_stressors");
+
+        List<String> checkinColumns = jdbc.queryForList("""
+                SELECT column_name FROM information_schema.columns
+                WHERE table_schema = current_schema() AND table_name = 'checkins'
+                """, String.class);
+        // 자유 입력(메모·텍스트) 컬럼이 없다(A_SPEC §6)
+        assertThat(checkinColumns).containsExactlyInAnyOrder(
+                "id", "user_id", "local_date", "mood", "support_need", "status", "created_at", "updated_at");
+    }
+
+    @Test
     void duplicateLoginIdIsRejected() {
         insertUser("dupuser", "subject-a");
 

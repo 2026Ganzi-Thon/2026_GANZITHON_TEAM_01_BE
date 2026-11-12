@@ -91,8 +91,11 @@ som:
     signals:
       # TODO(DECISION): 수집 요청 제한 값 미확정(ADR-008). 아래는 [제안] 값
       per-user:     { capacity: 30, refill-period: 1m }
+  checkin:
+    max-stressors: 1             # TODO(DECISION): Q2 최대 선택 개수 미정(A_SPEC §6). 기본 1
+    max-range-days: 31           # GET /checkins?from=&to= 최대 기간(명세에 값 없음 → 설정값)
   idempotency:
-    retention: 24h               # Idempotency-Key 보존 기간(명세에 값 없음 → 설정값)
+    retention: 24h              # Idempotency-Key 보존 기간(명세에 값 없음 → 설정값)
   engine:
     mode: mock                   # mock | real (ADR-002). real 구현은 B가 작성
     mock:
