@@ -12,6 +12,7 @@ import com.som.state.dto.TodayStateResponse;
 import com.som.state.repository.FatigueSnapshotRepository;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.stereotype.Service;
 
@@ -26,15 +27,17 @@ public class StateService {
     private final FatigueSnapshotRepository snapshots;
     private final SnapshotService snapshotService;
     private final WoolTrimQuery woolTrims;
+    private final GreetingQuery greetings;
     private final ServiceDates dates;
     private final StateProperties properties;
     private final ObjectMapper objectMapper;
 
     public StateService(FatigueSnapshotRepository snapshots, SnapshotService snapshotService, WoolTrimQuery woolTrims,
-                        ServiceDates dates, StateProperties properties, ObjectMapper objectMapper) {
+                        GreetingQuery greetings, ServiceDates dates, StateProperties properties, ObjectMapper objectMapper) {
         this.snapshots = snapshots;
         this.snapshotService = snapshotService;
         this.woolTrims = woolTrims;
+        this.greetings = greetings;
         this.dates = dates;
         this.properties = properties;
         this.objectMapper = objectMapper;
@@ -47,13 +50,21 @@ public class StateService {
                 .orElseThrow(() -> new ApiException(ErrorCode.ENGINE_UNAVAILABLE));
         return new TodayStateResponse(today, snapshot.getScore(), snapshot.getLevel(), snapshot.getStatus().name(),
                 snapshot.getStatusText(), snapshot.getSubText(), snapshot.getAssetKey(), snapshot.getWoolDisplayKg(),
-                bubbleText(snapshot.getLevel()), usedSources(snapshot.getUsedSources()),
+                bubbleText(userId, today, snapshot.getLevel()), usedSources(snapshot.getUsedSources()),
                 snapshot.getAlgorithmVersion(), dates.inServiceZone(snapshot.getCalculatedAt()), snapshot.isStale(),
                 woolTrims.trimmedOn(userId, today));
     }
 
-    // TODO(DECISION): 말풍선 출처 B 합의 대기(A_SPEC §7) — 3단계 선제 인사 결과로 대체 예정. 지금은 단계별 고정 문구(설정값)
-    private String bubbleText(Integer level) {
+    /**
+     * 오늘 선제 인사가 있으면 그 문구, 없으면 단계별 고정 문구. 홈 조회는 인사를 만들지 않으므로(engine 호출 방지)
+     * 대화를 열기 전에는 고정 문구가 보인다.
+     */
+    // TODO(DECISION): 말풍선 출처 B 합의 대기(A_SPEC §7) — 기본: 하루 1회 선제 인사, 없으면 단계별 고정 문구(설정값)
+    private String bubbleText(Long userId, LocalDate today, Integer level) {
+        Optional<String> greeting = greetings.greetingOn(userId, today);
+        if (greeting.isPresent()) {
+            return greeting.get();
+        }
         return level == null ? properties.bubbleText().insufficient() : properties.bubbleText().levels().get(level - 1);
     }
 

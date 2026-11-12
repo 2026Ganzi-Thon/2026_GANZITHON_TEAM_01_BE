@@ -7,6 +7,7 @@ import com.som.chat.domain.ChatMessage;
 import com.som.chat.domain.MessageRole;
 import com.som.chat.domain.MessageType;
 import com.som.chat.repository.ChatMessageRepository;
+import com.som.common.lock.AdvisoryLock;
 import com.som.engine.chat.CardType;
 import com.som.engine.chat.ChatCard;
 import com.som.engine.chat.ChatResult;
@@ -34,13 +35,15 @@ public class ChatReplyWriter {
     private final RoutineCatalogRepository catalog;
     private final ChatProperties properties;
     private final ObjectMapper objectMapper;
+    private final AdvisoryLock locks;
 
     public ChatReplyWriter(ChatMessageRepository messages, RoutineCatalogRepository catalog,
-                           ChatProperties properties, ObjectMapper objectMapper) {
+                           ChatProperties properties, ObjectMapper objectMapper, AdvisoryLock locks) {
         this.messages = messages;
         this.catalog = catalog;
         this.properties = properties;
         this.objectMapper = objectMapper;
+        this.locks = locks;
     }
 
     @Transactional
@@ -67,6 +70,15 @@ public class ChatReplyWriter {
             toCard(userId, date, card, now).map(messages::saveAndFlush).ifPresent(saved::add);
         }
         return saved;
+    }
+
+    /** 오늘 인사가 아직 없을 때만 저장한다(동시 요청은 잠금으로 직렬화, 하루 1개). */
+    @Transactional
+    public void saveGreetingIfAbsent(Long userId, LocalDate date, ChatResult result, OffsetDateTime now) {
+        locks.lock("greeting:" + userId + ":" + date);
+        if (messages.findByUserIdAndThreadDateAndGreetingTrue(userId, date).isEmpty()) {
+            saveReplies(userId, date, Optional.of(result), true, now);
+        }
     }
 
     private Optional<ChatMessage> toCard(Long userId, LocalDate date, ChatCard card, OffsetDateTime now) {

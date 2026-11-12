@@ -4,10 +4,12 @@ import com.som.auth.web.CurrentUserId;
 import com.som.chat.dto.ChatMessageRequest;
 import com.som.chat.dto.ChatPage;
 import com.som.chat.dto.ChatTurnResponse;
+import com.som.chat.service.ChatGreetingService;
 import com.som.chat.service.ChatService;
 import com.som.common.ratelimit.RateLimitProperties;
 import com.som.common.ratelimit.RateLimitedException;
 import com.som.common.ratelimit.RateLimiter;
+import com.som.common.time.ServiceDates;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.List;
@@ -29,9 +31,14 @@ public class ChatController {
     private final ChatService chatService;
     private final RateLimiter rateLimiter;
     private final RateLimitProperties.Chat limits;
+    private final ChatGreetingService greetings;
+    private final ServiceDates dates;
 
-    public ChatController(ChatService chatService, RateLimiter rateLimiter, RateLimitProperties rateLimits) {
+    public ChatController(ChatService chatService, RateLimiter rateLimiter, RateLimitProperties rateLimits,
+                          ChatGreetingService greetings, ServiceDates dates) {
         this.chatService = chatService;
+        this.greetings = greetings;
+        this.dates = dates;
         this.rateLimiter = rateLimiter;
         this.limits = rateLimits.chat();
     }
@@ -44,6 +51,7 @@ public class ChatController {
         if (!perMinute.allowed() || !perDay.allowed()) {
             throw new RateLimitedException(Math.max(perMinute.retryAfterSeconds(), perDay.retryAfterSeconds()));
         }
+        greetings.ensureToday(userId); // 그날 첫 메시지는 선제 인사(A_SPEC §7)
         return chatService.send(userId, body.text());
     }
 
@@ -52,6 +60,9 @@ public class ChatController {
                       @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
                       @RequestParam(required = false) String cursor,
                       @RequestParam(required = false) Integer size) {
+        if (date.equals(dates.today()) && cursor == null) {
+            greetings.ensureToday(userId); // 오늘 대화를 처음 열 때 선제 인사(하루 1회)
+        }
         return chatService.page(userId, date, cursor, size);
     }
 

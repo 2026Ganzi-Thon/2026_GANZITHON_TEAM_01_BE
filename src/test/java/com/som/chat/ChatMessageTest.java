@@ -87,9 +87,10 @@ class ChatMessageTest {
         assertThat(body.path("helpResources").isNull()).isTrue();
 
         JsonNode items = page(s, "?date=2026-11-11").path("items");
-        assertThat(items).hasSize(2);
-        assertThat(items.get(0).path("role").asText()).isEqualTo("USER");
-        assertThat(items.get(1).path("role").asText()).isEqualTo("SOMI");
+        assertThat(items).hasSize(3); // 선제 인사 + 사용자 + 답장
+        assertThat(items.get(0).path("role").asText()).isEqualTo("SOMI");
+        assertThat(items.get(1).path("role").asText()).isEqualTo("USER");
+        assertThat(items.get(2).path("role").asText()).isEqualTo("SOMI");
         assertThat(items.get(0).path("threadDate").asText()).isEqualTo("2026-11-11");
     }
 
@@ -105,7 +106,7 @@ class ChatMessageTest {
     }
 
     @Test
-    void engine이_실패하면_고정_문구로_답하고_사용자_메시지는_남는다() throws Exception {
+    void engine이_실패하면_고정_문구로_답하고_사용자_메시지는_남는다() throws Exception { // 인사도 실패해 저장 안 됨
         MockHttpSession s = ready("cht03");
         chatEngine.fail(true);
 
@@ -166,7 +167,7 @@ class ChatMessageTest {
     void 커서로_다음_페이지를_읽는다() throws Exception {
         MockHttpSession s = ready("cht07");
         for (int i = 0; i < 3; i++) {
-            send(s, "메시지 " + i); // 사용자 1 + 소미 1 = 2행씩
+            send(s, "메시지 " + i); // 사용자 1 + 소미 1 = 2행씩, 첫 전송 전 선제 인사 1행
         }
 
         JsonNode first = page(s, "?date=2026-11-11&size=4");
@@ -174,7 +175,7 @@ class ChatMessageTest {
         String cursor = first.path("nextCursor").asText();
         assertThat(cursor).isNotBlank();
         JsonNode second = page(s, "?date=2026-11-11&size=4&cursor=" + cursor);
-        assertThat(second.path("items")).hasSize(2);
+        assertThat(second.path("items")).hasSize(3);
         assertThat(second.path("nextCursor").isNull()).isTrue();
         assertThat(second.path("items").get(0).path("id").asLong())
                 .isGreaterThan(first.path("items").get(3).path("id").asLong());
@@ -213,10 +214,16 @@ class ChatMessageTest {
         JsonNode aPage = page(a, "?date=2026-11-11&size=1");
         String aCursor = aPage.path("nextCursor").asText();
 
-        assertThat(page(b, "?date=2026-11-11").path("items")).isEmpty();
-        assertThat(page(b, "?date=2026-11-11&cursor=" + aCursor).path("items")).isEmpty();
-        assertThat(json(objectMapper, mockMvc.perform(get("/api/v1/chat/dates?month=2026-11").session(b))
-                .andReturn())).isEmpty();
+        assertThat(page(b, "?date=2026-11-11").path("items"))
+                .allSatisfy(m -> assertThat(m.path("content").asText()).doesNotContain("A의 비밀"))
+                .noneMatch(m -> m.path("role").asText().equals("USER"));
+        assertThat(page(b, "?date=2026-11-11&cursor=" + aCursor).path("items"))
+                .noneMatch(m -> m.path("content").asText().contains("A의 비밀"));
+        clock.set("2026-11-05T05:00:00Z");
+        send(a, "A만 대화한 날");
+        JsonNode bDates = json(objectMapper, mockMvc.perform(get("/api/v1/chat/dates?month=2026-11").session(b))
+                .andReturn());
+        assertThat(bDates).noneMatch(d -> d.asText().equals("2026-11-05"));
     }
 
     @Test
