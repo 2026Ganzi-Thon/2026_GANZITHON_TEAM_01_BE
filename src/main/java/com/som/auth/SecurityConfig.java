@@ -42,7 +42,8 @@ public class SecurityConfig {
     @Bean
     SecurityFilterChain securityFilterChain(HttpSecurity http, SecurityErrorHandler errorHandler,
                                             RequiredConsentChecker consentChecker,
-                                            ConsentGateProperties gateProperties) throws Exception {
+                                            ConsentGateProperties gateProperties,
+                                            UserRepository users) throws Exception {
         http
                 .formLogin(AbstractHttpConfigurer::disable)
                 .httpBasic(AbstractHttpConfigurer::disable)
@@ -58,7 +59,7 @@ public class SecurityConfig {
                         .authenticationEntryPoint(errorHandler)
                         .accessDeniedHandler(errorHandler))
                 // 인증·인가 통과 후 필수 약관 게이트(미인증 요청은 AuthorizationFilter에서 이미 401)
-                .addFilterAfter(new RequiredConsentGateFilter(consentChecker, gateProperties, errorHandler),
+                .addFilterAfter(new RequiredConsentGateFilter(consentChecker, gateProperties, errorHandler, users),
                         AuthorizationFilter.class);
         return http.build();
     }

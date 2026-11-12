@@ -60,6 +60,16 @@ public class AccountController {
         return deletionService.delete(userId, DeletionScope.DATA);
     }
 
+    /** 탈퇴: 모든 데이터 즉시 삭제 → 세션 무효화. 탈퇴 후에는 상태를 조회할 수 없으므로 응답에 담는다. */
+    @DeleteMapping
+    DeletionStatusResponse withdraw(@CurrentUserId Long userId, @RequestBody DeletionConfirmRequest body,
+                                    HttpServletRequest request, HttpServletResponse response) {
+        checkDeletion(userId, body);
+        DeletionStatusResponse result = deletionService.delete(userId, DeletionScope.ACCOUNT);
+        logoutHandler.logout(request, response, SecurityContextHolder.getContext().getAuthentication());
+        return result;
+    }
+
     /** 가장 최근 삭제 처리 상태. 없으면 404. */
     @GetMapping("/deletion-status")
     DeletionStatusResponse deletionStatus(@CurrentUserId Long userId) {
