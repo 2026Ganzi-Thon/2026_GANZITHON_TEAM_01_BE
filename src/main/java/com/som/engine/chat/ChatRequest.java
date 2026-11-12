@@ -1,6 +1,7 @@
 package com.som.engine.chat;
 
 import com.som.engine.fatigue.CheckinInput;
+import com.som.engine.routine.RoutineContext;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Set;
@@ -15,7 +16,12 @@ import java.util.Set;
  */
 public record ChatRequest(String subjectKey, ChatMode mode, LocalDate localDate, String userText,
                           List<ChatTurn> recentMessages, CheckinInput todayCheckin, WeekSummary weekSummary,
-                          Set<String> consentedSources) {
+                          Set<String> consentedSources, RoutineContext routineContext) {
+    public ChatRequest(String subjectKey, ChatMode mode, LocalDate localDate, String userText,
+                       List<ChatTurn> recentMessages, CheckinInput todayCheckin, WeekSummary weekSummary,
+                       Set<String> consentedSources) {
+        this(subjectKey, mode, localDate, userText, recentMessages, todayCheckin, weekSummary, consentedSources, null);
+    }
 
     @Override
     public String toString() {

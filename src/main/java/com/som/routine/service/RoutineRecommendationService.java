@@ -10,6 +10,7 @@ import com.som.checkin.repository.CheckinRepository;
 import com.som.common.error.ApiException;
 import com.som.common.error.ErrorCode;
 import com.som.common.time.ServiceDates;
+import com.som.engine.routine.RoutineContext;
 import com.som.engine.routine.RoutineEngine;
 import com.som.engine.routine.RoutineRecommendation;
 import com.som.engine.routine.RoutineRequest;
@@ -23,6 +24,7 @@ import java.time.LocalDate;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 
 /**
@@ -71,13 +73,13 @@ public class RoutineRecommendationService {
 
         String subjectKey = users.findById(userId).map(User::getSubjectKey)
                 .orElseThrow(() -> new ApiException(ErrorCode.UNAUTHORIZED));
-        List<String> catalogIds = catalog.findAllByOrderByDisplayOrder().stream()
-                .map(RoutineCatalogItem::getRoutineId).toList();
-        Integer level = snapshots.findByUserIdAndLocalDate(userId, today).map(FatigueSnapshot::getLevel).orElse(null);
-        String supportNeed = checkins.findByUserIdAndLocalDate(userId, today).map(Checkin::getSupportNeed)
-                .map(Enum::name).orElse(null);
-        RoutineRequest request = new RoutineRequest(subjectKey, today, level, supportNeed, catalogIds,
-                recentCompletions.routineIds(userId, today));
+        RoutineContext context = context(userId, today);
+        List<String> catalogIds = context.catalogIds();
+        Optional<Checkin> checkin = checkins.findByUserIdAndLocalDate(userId, today);
+        String supportNeed = checkin.map(Checkin::getSupportNeed).map(Enum::name).orElse(null);
+        String mood = checkin.map(Checkin::getMood).map(Enum::name).orElse(null);
+        RoutineRequest request = new RoutineRequest(subjectKey, today, context.level(), supportNeed, catalogIds,
+                context.completedRecently(), mood, context.catalogDurations());
 
         Optional<RoutineRecommendation> result = gateway.call("routine.recommend", () -> engine.recommend(request),
                 r -> isValid(r, catalogIds));
@@ -92,6 +94,14 @@ public class RoutineRecommendationService {
         return recommendations.findLatestBefore(userId, today)
                 .map(s -> new TodayRecommendation(ids(s.routineIdsJson()), true))
                 .orElseThrow(() -> new ApiException(ErrorCode.ENGINE_UNAVAILABLE));
+    }
+
+    public RoutineContext context(Long userId, LocalDate date) {
+        List<RoutineCatalogItem> items = catalog.findAllByOrderByDisplayOrder();
+        Integer level = snapshots.findByUserIdAndLocalDate(userId, date).map(FatigueSnapshot::getLevel).orElse(null);
+        return new RoutineContext(level, items.stream().map(RoutineCatalogItem::getRoutineId).toList(),
+                recentCompletions.routineIds(userId, date), items.stream().collect(Collectors.toUnmodifiableMap(
+                        RoutineCatalogItem::getRoutineId, RoutineCatalogItem::getDurationSec)));
     }
 
     private static boolean isValid(RoutineRecommendation result, List<String> catalogIds) {
