@@ -5,10 +5,10 @@
 
 ---
 
-### ADR-001: Java + Spring Boot, A·B 같은 프로젝트
-**결정**: Java 17 + Spring Boot 3.x(Gradle). B는 같은 프로젝트의 `engine` 패키지로 둔다.
-**이유**: 팀이 Spring을 학습했고, 같은 프로젝트면 서버 간 인증·배포 2회·네트워크 장애 처리가 필요 없다.
-**트레이드오프**: Python 대비 LLM 연동 생태계가 얇다. B와 합의가 바뀌어 별도 서버가 되면 engine 구현을 HTTP 클라이언트로 교체한다(인터페이스는 유지).
+### ADR-001: A는 Java + Spring Boot, B는 별도 FastAPI 서비스 (2026-11-12 개정)
+**결정**: A는 Java 17 + Spring Boot 3.x(Gradle). B는 별도 FastAPI 서비스로 두고 A가 HTTP(JSON)로 호출한다. A의 `engine` 패키지는 인터페이스·DTO·Mock과, real 모드에서 B를 부르는 HTTP 클라이언트 구현만 둔다. 요청·응답 형식은 "솜 A↔B engine API 계약" 문서를 따른다.
+**이유**: 팀이 Spring을 학습했고 인증·동의·보안은 Spring Security가 강하다. B는 LLM·데이터 라이브러리가 많은 Python을 원했고, 팀이 합의했다(2026-11-12).
+**트레이드오프**: 서버 간 인증(내부 토큰, 환경변수)·배포 2회·네트워크 장애 처리가 필요하다 → 타임아웃·재시도 상한은 `EngineGateway`, 실패 시 마지막 정상 값 + `is_stale`. 개정 전 결정: B도 같은 프로젝트의 `engine` 패키지(Java).
 
 ### ADR-002: engine 인터페이스 + Mock 우선 개발
 **결정**: A는 `engine` 인터페이스와 Mock만 작성하고, `som.engine.mode=mock|real`로 전환한다.
