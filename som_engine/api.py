@@ -32,7 +32,7 @@ def summarize(request: InsightRequest) -> InsightResult:
 
 @app.post("/v1/routines/recommend")
 def recommend(request: RoutineRequest) -> RoutineResult:
-    return routines.recommend(request)
+    return routines.recommend(request, request.mood, request.supportNeed)
 
 
 @app.post("/v1/chat/respond")

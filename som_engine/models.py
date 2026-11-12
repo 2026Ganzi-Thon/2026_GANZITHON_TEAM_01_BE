@@ -158,23 +158,41 @@ class InsightResult(Payload):
     changes: list[PeriodSignalChange] = Field(default_factory=list)
 
 
-class RoutineRequest(Dated):
+Duration = Annotated[int, Field(ge=1, le=3600)]
+
+
+class RoutineContext(Payload):
     level: Level | None = None
-    mood: Mood | None = None
-    supportNeed: Support | None = None
     catalogIds: list[str] = Field(max_length=50)
     completedRecently: list[str] = Field(default_factory=list, max_length=100)
+    preferredRoutineIds: list[str] = Field(default_factory=list, max_length=50)
+    catalogDurations: dict[str, Duration] = Field(default_factory=dict, max_length=50)
+    availableSeconds: Duration | None = None
 
     @model_validator(mode="after")
-    def unique_catalog(self):
-        if len(self.catalogIds) != len(set(self.catalogIds)):
+    def validate_catalog(self):
+        ids = set(self.catalogIds)
+        if len(self.catalogIds) != len(ids):
             raise ValueError("duplicate catalog IDs")
+        if self.catalogDurations.keys() - ids:
+            raise ValueError("duration provided for unknown catalog ID")
         return self
+
+
+class RoutineRequest(RoutineContext, Dated):
+    mood: Mood | None = None
+    supportNeed: Support | None = None
+
+
+class RoutineItem(Payload):
+    routineId: str
+    durationSec: Duration | None = None
 
 
 class RoutineResult(Payload):
     routineIds: list[str]
     reason: str
+    items: list[RoutineItem] = Field(default_factory=list)
 
 
 class WeekSummary(Payload):
@@ -202,12 +220,14 @@ class ChatRequest(Dated):
     recentMessages: list[ChatTurn] = Field(default_factory=list, max_length=30)
     todayCheckin: Checkin | None = None
     weekSummary: WeekSummary | None = None
+    routineContext: RoutineContext | None = None
     consentedSources: set[str] = Field(default_factory=set, max_length=20)
 
 
 class ChatCard(Payload):
     type: Literal["WEEK_SUMMARY", "ROUTINE_RECOMMENDATION"]
     routineId: str | None = None
+    durationSec: Duration | None = None
     title: str | None = None
     body: str | None = None
 

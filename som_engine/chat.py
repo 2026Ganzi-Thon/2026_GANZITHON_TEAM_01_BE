@@ -7,8 +7,8 @@ import httpx
 from pydantic import Field
 
 from .evidence import best_changes, describe
-from .models import ChatCard, ChatRequest, ChatResult, Payload
-from .routines import BREATHING
+from .models import ChatCard, ChatRequest, ChatResult, Payload, RoutineContext, Support
+from .routines import DEFAULT_DURATIONS, recommend
 
 SUPPORT_TEXT = {
     "COMFORT": "오늘 마음이 어땠는지 여기까지 살펴본 것만으로도 충분해요.",
@@ -94,8 +94,26 @@ def usable_model_text(result: ModelReply | None) -> str | None:
     return text
 
 
+def routine_card(request: ChatRequest, support: Support | None) -> list[ChatCard]:
+    context = request.routineContext or RoutineContext(catalogIds=list(DEFAULT_DURATIONS))
+    mood = request.todayCheckin.mood if request.todayCheckin else None
+    recommendation = recommend(context, mood, support)
+    if not recommendation.items:
+        return []
+    item = recommendation.items[0]
+    if context.availableSeconds is not None and (
+        item.durationSec is None or item.durationSec > context.availableSeconds
+    ):
+        return []
+    return [ChatCard(type="ROUTINE_RECOMMENDATION", routineId=item.routineId,
+                     durationSec=item.durationSec, body=recommendation.reason)]
+
+
 def reply(request: ChatRequest) -> ChatResult:
     if request.mode == "GREETING":
+        context = request.routineContext
+        support = request.todayCheckin.supportNeed if request.todayCheckin else None
+        cards = routine_card(request, support) if context and context.level in (3, 4) else []
         summary = request.weekSummary
         if summary and summary.recordedDays > 0:
             changes = best_changes(summary.changes, request.consentedSources)
@@ -106,9 +124,9 @@ def reply(request: ChatRequest) -> ChatResult:
                 return ChatResult(
                     text=f"안녕하세요, 소미예요. {snippets[0]} 오늘 마음은 어떤가요?",
                     cards=[ChatCard(type="WEEK_SUMMARY", title="이번 주 달라진 점" if changes else "이번 주 기록",
-                                    body=" ".join(snippets))],
+                                    body=" ".join(snippets)), *cards],
                 )
-        return ChatResult(text="안녕하세요, 소미예요. 오늘 마음은 어떤가요?")
+        return ChatResult(text="안녕하세요, 소미예요. 오늘 마음은 어떤가요?", cards=cards)
 
     text = (request.userText or "").strip()
     if contains_signal(text, IMMEDIATE_SIGNALS):
@@ -126,9 +144,7 @@ def reply(request: ChatRequest) -> ChatResult:
     support = request.todayCheckin.supportNeed if request.todayCheckin else None
     selected = intent if intent in SUPPORT_TEXT else support
     answer = usable_model_text(generated) or SUPPORT_TEXT.get(selected)
-    cards = [ChatCard(type="ROUTINE_RECOMMENDATION", routineId=BREATHING)] if selected in {
-        "SHORT_BREAK", "SMALL_ACTION",
-    } else []
+    cards = routine_card(request, selected) if selected in {"SHORT_BREAK", "SMALL_ACTION"} else []
     return ChatResult(
         text=answer or "여기서 천천히 이야기해도 괜찮아요. 지금 어떤 도움이 필요해요?", cards=cards,
     )
