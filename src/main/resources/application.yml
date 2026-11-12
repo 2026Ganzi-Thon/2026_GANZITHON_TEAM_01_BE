@@ -76,6 +76,7 @@ som:
         - /api/v1/auth/**
         - /api/v1/me
         - /api/v1/me/consents
+        - /api/v1/help-resources   # 위기 안내는 동의 전에도(A_SPEC §10)
   signals:
     ingest-enabled: true          # 데모·개발용 수신 API. 운영 프로필에서 false로 끌 수 있음(A_SPEC §5) — false면 404
     max-entries-per-request: 48
