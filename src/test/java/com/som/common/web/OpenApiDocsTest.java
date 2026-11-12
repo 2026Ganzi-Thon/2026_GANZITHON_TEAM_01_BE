@@ -90,6 +90,12 @@ class OpenApiDocsTest {
     }
 
     @Test
+    void paths에_체크인_상태_기록_경로가_있다() throws Exception {
+        assertThat(fieldNames(docs().path("paths"))).contains(
+                "/api/v1/checkins", "/api/v1/state/today", "/api/v1/insights/week", "/api/v1/insights");
+    }
+
+    @Test
     void 모든_operation에_403_500_ErrorResponse가_붙고_401은_인증필요_operation에만_붙는다() throws Exception {
         JsonNode docs = docs();
         JsonNode paths = docs.path("paths");

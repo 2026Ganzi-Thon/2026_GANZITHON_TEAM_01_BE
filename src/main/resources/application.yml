@@ -103,8 +103,10 @@ som:
         - "피로가 쌓였나 봐요. 오늘 이야기를 들려줄래요?"
         - "많이 지쳤죠. 천천히 같이 쉬어 가요."
       insufficient: "오늘 마음은 어떤가요? 체크인으로 알려 주세요."
+  insights:
+    allowed-days: [7, 30]        # 마이 기간 기록(A_SPEC §13)
   idempotency:
-    retention: 24h             # Idempotency-Key 보존 기간(명세에 값 없음 → 설정값)
+    retention: 24h            # Idempotency-Key 보존 기간(명세에 값 없음 → 설정값)
   engine:
     mode: mock                   # mock | real (ADR-002). real 구현은 B가 작성
     timeout: 2s                  # engine 호출 1회 타임아웃(A_SPEC §12 — 상한은 설정)
