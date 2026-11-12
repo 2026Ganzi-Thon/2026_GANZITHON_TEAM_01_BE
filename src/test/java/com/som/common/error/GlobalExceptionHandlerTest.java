@@ -62,6 +62,7 @@ class GlobalExceptionHandlerTest {
         assertThat(ErrorCode.VALIDATION_ERROR.status().value()).isEqualTo(400);
         assertThat(ErrorCode.MALFORMED_REQUEST.status().value()).isEqualTo(400);
         assertThat(ErrorCode.UNAUTHORIZED.status().value()).isEqualTo(401);
+        assertThat(ErrorCode.INVALID_CREDENTIALS.status().value()).isEqualTo(401);
         assertThat(ErrorCode.FORBIDDEN.status().value()).isEqualTo(403);
         assertThat(ErrorCode.CONSENT_REQUIRED.status().value()).isEqualTo(403);
         assertThat(ErrorCode.NOT_FOUND.status().value()).isEqualTo(404);
@@ -72,7 +73,8 @@ class GlobalExceptionHandlerTest {
         assertThat(ErrorCode.ENGINE_UNAVAILABLE.status().value()).isEqualTo(503);
         assertThat(ErrorCode.CSRF_INVALID.status().value()).isEqualTo(403);
         assertThat(ErrorCode.UNSUPPORTED_MEDIA_TYPE.status().value()).isEqualTo(415);
-        assertThat(ErrorCode.values()).hasSize(13);
+        assertThat(ErrorCode.SOURCE_NOT_CONSENTED.status().value()).isEqualTo(403);
+        assertThat(ErrorCode.values()).hasSize(15);
         for (ErrorCode code : ErrorCode.values()) {
             assertThat(code.defaultMessage()).isNotBlank();
         }
@@ -106,6 +108,27 @@ class GlobalExceptionHandlerTest {
         String body = expectError(json(post("/test/errors/mood"), "{\"mood\":\"HAPPY\"}"),
                 400, ErrorCode.VALIDATION_ERROR);
         assertThat(body).doesNotContain("HAPPY").doesNotContain("Mood").contains("mood");
+    }
+
+    @Test
+    void DTO에_없는_userId_필드는_400_VALIDATION_ERROR이고_값을_노출하지_않는다() throws Exception {
+        String body = expectError(json(post("/test/errors/mood"), "{\"mood\":\"CALM\",\"userId\":999}"),
+                400, ErrorCode.VALIDATION_ERROR);
+        assertThat(body).contains("userId").doesNotContain("999");
+    }
+
+    @Test
+    void 안_보는_것_필드는_400_VALIDATION_ERROR이고_값을_노출하지_않는다() throws Exception {
+        String body = expectError(json(post("/test/errors/mood"), "{\"mood\":\"CALM\",\"title\":\"secret-meeting\"}"),
+                400, ErrorCode.VALIDATION_ERROR);
+        assertThat(body).contains("title").doesNotContain("secret-meeting");
+    }
+
+    @Test
+    void DTO_필드만_보내면_정상_처리된다() throws Exception {
+        mockMvc.perform(json(post("/test/errors/mood"), "{\"mood\":\"CALM\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.mood").value("CALM"));
     }
 
     @Test

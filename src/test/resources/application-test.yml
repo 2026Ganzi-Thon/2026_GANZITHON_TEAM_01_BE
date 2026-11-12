@@ -6,3 +6,16 @@ spring:
     hikari:
       # 캐시된 테스트 컨텍스트마다 풀이 남으므로 작게 둔다(DB 역할의 동시 접속 상한 초과 방지)
       maximum-pool-size: 2
+
+som:
+  rate-limit:
+    login:
+      # 기존 로그인 테스트는 모두 127.0.0.1에서 같은 컨텍스트를 공유하므로 제한에 걸리지 않게 크게 둔다.
+      # 제한 동작은 LoginRateLimitTest가 작은 값으로 덮어써서 검증한다.
+      per-ip:       { capacity: 100000, refill-period: 1m }
+      per-login-id: { capacity: 100000, refill-period: 1m }
+    # 가입·수신도 같은 이유로 크게 둔다. 제한 동작은 SignupRateLimitTest·SignalRateLimitTest가 검증한다.
+    signup:
+      per-ip:       { capacity: 100000, refill-period: 1m }
+    signals:
+      per-user:     { capacity: 100000, refill-period: 1m }

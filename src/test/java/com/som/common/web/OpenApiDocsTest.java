@@ -24,6 +24,8 @@ import org.springframework.test.web.servlet.MockMvc;
 class OpenApiDocsTest {
 
     private static final String DOCS = "/v3/api-docs";
+    private static final List<String> PUBLIC = List.of(
+            "/api/v1/auth/login", "/api/v1/auth/signup", "/api/v1/auth/logout", "/api/v1/auth/csrf");
 
     @Autowired
     MockMvc mockMvc;
@@ -88,19 +90,30 @@ class OpenApiDocsTest {
     }
 
     @Test
-    void 모든_operation에_401_403_500_ErrorResponse가_붙는다() throws Exception {
+    void 모든_operation에_403_500_ErrorResponse가_붙고_401은_인증필요_operation에만_붙는다() throws Exception {
         JsonNode docs = docs();
         JsonNode paths = docs.path("paths");
         assertThat(paths.size()).isPositive();
-        paths.forEach(path -> path.forEach(operation -> {
+        paths.fields().forEachRemaining(path -> path.getValue().forEach(operation -> {
+            boolean isPublic = PUBLIC.contains(path.getKey());
             for (String status : List.of("401", "403", "500")) {
-                JsonNode schema = operation.path("responses").path(status)
-                        .path("content").path("application/json").path("schema");
-                assertThat(schema.path("$ref").asText())
-                        .as("%s %s", operation.path("operationId").asText(), status)
-                        .isEqualTo("#/components/schemas/ErrorResponse");
+                JsonNode response = operation.path("responses").path(status);
+                String label = path.getKey() + " " + status;
+                if (status.equals("401") && isPublic) {
+                    assertThat(response.isMissingNode()).as(label).isTrue();
+                    continue;
+                }
+                assertThat(response.path("content").path("application/json").path("schema").path("$ref").asText())
+                        .as(label).isEqualTo("#/components/schemas/ErrorResponse");
             }
         }));
+    }
+
+    @Test
+    void 로그인_operation에는_공통_401이_없다() throws Exception {
+        JsonNode login = docs().path("paths").path("/api/v1/auth/login").path("post");
+        assertThat(login.isMissingNode()).isFalse();
+        assertThat(login.path("responses").has("401")).isFalse();
     }
 
     @Test

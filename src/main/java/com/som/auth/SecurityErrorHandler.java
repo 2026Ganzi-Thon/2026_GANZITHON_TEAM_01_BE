@@ -41,7 +41,7 @@ public class SecurityErrorHandler implements AuthenticationEntryPoint, AccessDen
         write(request, response, ex instanceof CsrfException ? ErrorCode.CSRF_INVALID : ErrorCode.FORBIDDEN);
     }
 
-    private void write(HttpServletRequest request, HttpServletResponse response, ErrorCode code) throws IOException {
+    void write(HttpServletRequest request, HttpServletResponse response, ErrorCode code) throws IOException {
         response.setStatus(code.status().value());
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         response.setCharacterEncoding(StandardCharsets.UTF_8.name());
