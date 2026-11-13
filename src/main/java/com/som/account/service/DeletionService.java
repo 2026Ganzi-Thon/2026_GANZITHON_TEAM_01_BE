@@ -15,10 +15,12 @@ import java.security.NoSuchAlgorithmException;
 import java.time.OffsetDateTime;
 import java.util.HexFormat;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 /**
  * 기록 삭제·탈퇴(A_SPEC §10·§11). 순서: DB 삭제(한 트랜잭션, UserDataEraser) → 커밋 후 engine 처리물 삭제
- * (EngineGateway 경유) → 익명화된 처리 기록. engine 삭제가 실패하면 ENGINE_PENDING으로 남긴다.
+ * (EngineGateway 경유) → 처리 완료. engine 삭제가 실패하면 재시도 대기 상태로 유지한다.
  * 삭제 후 스냅샷을 다시 계산하지 않는다(지운 데이터를 engine에 다시 보내지 않게).
  */
 @Service
@@ -33,32 +35,53 @@ public class DeletionService {
     private final EngineGateway gateway;
     private final DeletionRequestRepository requests;
     private final ServiceDates dates;
+    private final TransactionTemplate transactions;
 
     public DeletionService(UserRepository users, UserDataEraser eraser, EngineDataEraser engineEraser,
-                           EngineGateway gateway, DeletionRequestRepository requests, ServiceDates dates) {
+                           EngineGateway gateway, DeletionRequestRepository requests, ServiceDates dates,
+                           PlatformTransactionManager transactionManager) {
         this.users = users;
         this.eraser = eraser;
         this.engineEraser = engineEraser;
         this.gateway = gateway;
         this.requests = requests;
         this.dates = dates;
+        this.transactions = new TransactionTemplate(transactionManager);
     }
 
     public DeletionStatusResponse delete(Long userId, DeletionScope scope) {
         String subjectKey = users.findById(userId).map(User::getSubjectKey)
                 .orElseThrow(() -> new ApiException(ErrorCode.UNAUTHORIZED));
         OffsetDateTime requestedAt = dates.now();
-        eraser.erase(userId, scope); // 자체 트랜잭션으로 커밋된다
+        long requestId = transactions.execute(status -> {
+            eraser.erase(userId, scope);
+            return requests.enqueue(hash(subjectKey), subjectKey, scope.name(), requestedAt,
+                    requestedAt.plusMinutes(1));
+        });
 
-        // TODO(DECISION): ENGINE_PENDING 재시도 주기·방식(A_SPEC §11) — 지금은 기록만 남기고 재시도하지 않는다
-        boolean engineErased = gateway.call("engine.erase", () -> {
+        OffsetDateTime completedAt = eraseFromEngine(requestId, subjectKey);
+        return new DeletionStatusResponse(scope.name(), completedAt == null ? ENGINE_PENDING : COMPLETED,
+                requestedAt, completedAt);
+    }
+
+    void retryPending() {
+        OffsetDateTime now = dates.now();
+        for (var pending : requests.claimDue(now, now.plusMinutes(5))) {
+            eraseFromEngine(pending.id(), pending.subjectKey());
+        }
+    }
+
+    private OffsetDateTime eraseFromEngine(long requestId, String subjectKey) {
+        boolean erased = gateway.call("engine.erase", () -> {
             engineEraser.eraseSubject(subjectKey);
             return Boolean.TRUE;
         }, Boolean.TRUE::equals).isPresent();
-        String status = engineErased ? COMPLETED : ENGINE_PENDING;
-        OffsetDateTime completedAt = engineErased ? dates.now() : null;
-        requests.insert(hash(subjectKey), scope.name(), status, requestedAt, completedAt);
-        return new DeletionStatusResponse(scope.name(), status, requestedAt, completedAt);
+        if (!erased) {
+            return null;
+        }
+        OffsetDateTime completedAt = dates.now();
+        requests.complete(requestId, completedAt);
+        return completedAt;
     }
 
     public DeletionStatusResponse latest(Long userId) {
