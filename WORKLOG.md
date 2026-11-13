@@ -55,12 +55,12 @@
 - [ ] B 서버를 실제로 띄워 A real 모드로 전 흐름 확인(지금은 MockRestServiceServer 테스트만)
 - [ ] 연동 지표 맞추기: B는 분 단위 지표만 쓴다(걸음 수·잠든/깬 시각·일정 수는 B로 보내지 않음). 야간 휴대폰 사용·일정 사이 여유 시간은 A가 아직 만들지 않음
 - [ ] 마음 정리 저장 트랜잭션 안에서 털 깎임 B 호출(최대 2초×2회)이 일어난다 → 트랜잭션 밖으로 뺄지 검토
-- [ ] `backend-b/`(B 서버 코드)를 A 저장소에 둘지 팀 결정
+- [x] `backend-b/`(B 서버 코드) 위치: `main`의 `backend-b/`로 일원화, `BE_B` 브랜치는 쓰지 않음(2026-11-13 팀 결정)
 - [x] 4단계 삭제 대상 전체 반영(`UserDataEraserTest` 안전망: user_id 컬럼이 있는 테이블은 모두 삭제 목록에 있어야 통과)
 - [ ] 도움 기관 링크 URL 2건 확인 후 마이그레이션으로 넣기(현재 NULL)
 - [ ] 삭제 ENGINE_PENDING 재시도 방식 결정(현재 기록만)
 - [ ] 탈퇴 시 동의 이력 보존 여부 결정(현재 삭제)
-- [ ] real 모드 B HTTP 클라이언트 구현(계약 확정 후, `som.engine.mode=real`)
+- [x] real 모드 B HTTP 클라이언트 구현(`som.engine.mode=real`, 2026-11-13)
 - [ ] (리뷰 2) 주간 요약 engine 결과 캐시: B 실서버의 응답 속도를 보고 결정(ARCHITECTURE "캐시하고 무효화"와 아직 다름)
 - [ ] (리뷰 3) 동의 철회 시 지난 날짜 스냅샷 처리 정책 결정: 지금은 오늘만 다시 계산하고, 과거 값은 남는다(`[결정 필요]` 철회 시 보유 데이터 삭제 정책과 함께)
 - [ ] 데모 시연: `SPRING_PROFILES_ACTIVE=demo`, `SOM_DEMO_PASSWORD` 환경변수 설정 후 실행
@@ -367,3 +367,7 @@
   - 대화 원문 전송 설정의 `TODO(DECISION)` 주석 복원(기본 false 유지)
   - 테스트 추가: `HttpEngineTest`(6개 호출의 요청·응답 JSON, 인증 헤더, 오류), `EngineHttpConfigTest`(real/mock 빈, 잘못된 주소·빈 토큰이면 시작 실패)
 - `./gradlew clean build` ✅ 테스트 396개 통과(신규 11개)
+
+### 2026-11-13 — B 코드 위치 결정
+- B 서버 코드(Python FastAPI)는 이 저장소 `main`의 `backend-b/`에서 관리한다. A·B 연동 변경을 한 저장소에서 같이 맞추기 위해서다.
+- `BE_B` 브랜치는 더 이상 쓰지 않는다(정리는 B가 확인한 뒤).
