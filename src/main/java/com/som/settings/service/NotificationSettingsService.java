@@ -10,6 +10,7 @@ import com.som.settings.domain.NotificationSettings;
 import com.som.settings.domain.NotificationSlot;
 import com.som.settings.dto.NotificationSettingsResponse;
 import com.som.settings.repository.NotificationSettingsRepository;
+import com.som.settings.repository.OnboardingRepository;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Iterator;
@@ -32,19 +33,21 @@ public class NotificationSettingsService {
     private final NotificationSettingsRepository settings;
     private final ServiceDates dates;
     private final NotificationProperties properties;
+    private final OnboardingRepository onboarding;
 
     public NotificationSettingsService(NotificationSettingsRepository settings, ServiceDates dates,
-                                       NotificationProperties properties) {
+                                       NotificationProperties properties, OnboardingRepository onboarding) {
         this.settings = settings;
         this.dates = dates;
         this.properties = properties;
+        this.onboarding = onboarding;
     }
 
     /** 행이 없으면 기본값을 돌려주고 저장하지 않는다. */
     @Transactional(readOnly = true)
     public NotificationSettingsResponse get(Long userId) {
         return settings.findById(userId).map(this::toResponse)
-                .orElseGet(() -> new NotificationSettingsResponse(properties.defaultEnabled(), null, null));
+                .orElseGet(() -> new NotificationSettingsResponse(properties.defaultEnabled(), defaultSlot(userId), null));
     }
 
     /** 필드 없음 = 그대로, JSON null = 지움(enabled는 null 불가). 정의되지 않은 필드는 400(값은 메시지에 넣지 않음). */
@@ -67,9 +70,19 @@ public class NotificationSettingsService {
         LocalTime time = body.has("time") ? parseTime(body.get("time")) : null;
 
         NotificationSettings current = settings.findById(userId)
-                .orElseGet(() -> NotificationSettings.defaults(userId, properties.defaultEnabled()));
+                .orElseGet(() -> defaults(userId));
         current.apply(enabled, slot, body.has("slot"), time, body.has("time"), dates.now());
         return toResponse(settings.save(current));
+    }
+
+    private NotificationSlot defaultSlot(Long userId) {
+        return onboarding.find(userId).map(answers -> answers.preferredContactTime()).orElse(null);
+    }
+
+    private NotificationSettings defaults(Long userId) {
+        NotificationSettings value = NotificationSettings.defaults(userId, properties.defaultEnabled());
+        value.apply(null, defaultSlot(userId), true, null, false, dates.now());
+        return value;
     }
 
     private static NotificationSlot parseSlot(JsonNode node) {

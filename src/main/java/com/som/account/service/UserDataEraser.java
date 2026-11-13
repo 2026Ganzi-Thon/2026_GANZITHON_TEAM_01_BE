@@ -22,7 +22,7 @@ public class UserDataEraser {
 
     // TODO(DECISION): 탈퇴 시 동의 이력 보존 여부(A_SPEC §14) — 기본: 삭제(users FK). 보존하려면 익명화 테이블로 옮겨야 한다
     private static final List<String> ACCOUNT_ONLY_TABLES = List.of(
-            "connections", "notification_settings", "user_consents");
+            "connections", "notification_settings", "onboarding_answers", "user_consents");
 
     private final JdbcTemplate jdbc;
 

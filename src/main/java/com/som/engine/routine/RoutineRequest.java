@@ -12,9 +12,10 @@ import java.util.Map;
  */
 public record RoutineRequest(String subjectKey, LocalDate localDate, Integer level, String supportNeed,
                              List<String> catalogIds, List<String> completedRecently, String mood,
-                             Map<String, Integer> catalogDurations) {
+                             Map<String, Integer> catalogDurations,
+                             List<String> preferredRoutineIds, Integer availableSeconds) {
     public RoutineRequest(String subjectKey, LocalDate localDate, Integer level, String supportNeed,
                           List<String> catalogIds, List<String> completedRecently) {
-        this(subjectKey, localDate, level, supportNeed, catalogIds, completedRecently, null, Map.of());
+        this(subjectKey, localDate, level, supportNeed, catalogIds, completedRecently, null, Map.of(), List.of(), null);
     }
 }

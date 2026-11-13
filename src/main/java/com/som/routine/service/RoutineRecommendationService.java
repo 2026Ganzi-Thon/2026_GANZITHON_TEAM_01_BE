@@ -17,6 +17,9 @@ import com.som.engine.routine.RoutineRequest;
 import com.som.routine.domain.RoutineCatalogItem;
 import com.som.routine.repository.RoutineCatalogRepository;
 import com.som.routine.repository.RoutineRecommendationRepository;
+import com.som.settings.dto.OnboardingAnswers;
+import com.som.settings.dto.OnboardingAnswers.RecoveryStyle;
+import com.som.settings.repository.OnboardingRepository;
 import com.som.state.domain.FatigueSnapshot;
 import com.som.state.repository.FatigueSnapshotRepository;
 import com.som.state.service.EngineGateway;
@@ -46,12 +49,13 @@ public class RoutineRecommendationService {
     private final ServiceDates dates;
     private final ObjectMapper objectMapper;
     private final RecentCompletions recentCompletions;
+    private final OnboardingRepository onboarding;
 
     public RoutineRecommendationService(RoutineRecommendationRepository recommendations,
                                         RoutineCatalogRepository catalog, UserRepository users,
                                         CheckinRepository checkins, FatigueSnapshotRepository snapshots,
                                         RoutineEngine engine, EngineGateway gateway, ServiceDates dates,
-                                        ObjectMapper objectMapper, RecentCompletions recentCompletions) {
+                                        ObjectMapper objectMapper, RecentCompletions recentCompletions, OnboardingRepository onboarding) {
         this.recommendations = recommendations;
         this.catalog = catalog;
         this.users = users;
@@ -62,6 +66,7 @@ public class RoutineRecommendationService {
         this.dates = dates;
         this.objectMapper = objectMapper;
         this.recentCompletions = recentCompletions;
+        this.onboarding = onboarding;
     }
 
     public TodayRecommendation today(Long userId) {
@@ -79,7 +84,8 @@ public class RoutineRecommendationService {
         String supportNeed = checkin.map(Checkin::getSupportNeed).map(Enum::name).orElse(null);
         String mood = checkin.map(Checkin::getMood).map(Enum::name).orElse(null);
         RoutineRequest request = new RoutineRequest(subjectKey, today, context.level(), supportNeed, catalogIds,
-                context.completedRecently(), mood, context.catalogDurations());
+                context.completedRecently(), mood, context.catalogDurations(),
+                context.preferredRoutineIds(), context.availableSeconds());
 
         Optional<RoutineRecommendation> result = gateway.call("routine.recommend", () -> engine.recommend(request),
                 r -> isValid(r, catalogIds));
@@ -99,9 +105,18 @@ public class RoutineRecommendationService {
     public RoutineContext context(Long userId, LocalDate date) {
         List<RoutineCatalogItem> items = catalog.findAllByOrderByDisplayOrder();
         Integer level = snapshots.findByUserIdAndLocalDate(userId, date).map(FatigueSnapshot::getLevel).orElse(null);
+        var answers = onboarding.find(userId).orElseGet(OnboardingAnswers::empty);
+        var styles = answers.recoveryStyles() == null ? java.util.Set.<RecoveryStyle>of() : answers.recoveryStyles();
+        var preferred = items.stream().map(RoutineCatalogItem::getRoutineId)
+                .filter(id -> switch (id) {
+                    case "BREATHING" -> styles.contains(RecoveryStyle.QUIET_ALONE);
+                    case "SHOULDER_ROLL", "SEATED_TWIST", "WRIST_ARM_STRETCH" -> styles.contains(RecoveryStyle.MOVE_BODY);
+                    default -> false;
+                }).toList();
+        Integer seconds = answers.availableMinutes() == null ? null : answers.availableMinutes() * 60;
         return new RoutineContext(level, items.stream().map(RoutineCatalogItem::getRoutineId).toList(),
                 recentCompletions.routineIds(userId, date), items.stream().collect(Collectors.toUnmodifiableMap(
-                        RoutineCatalogItem::getRoutineId, RoutineCatalogItem::getDurationSec)));
+                        RoutineCatalogItem::getRoutineId, RoutineCatalogItem::getDurationSec)), preferred, seconds);
     }
 
     private static boolean isValid(RoutineRecommendation result, List<String> catalogIds) {
