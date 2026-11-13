@@ -1,5 +1,6 @@
 package com.som.engine.routine;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
@@ -13,7 +14,8 @@ import java.util.Map;
 public record RoutineRequest(String subjectKey, LocalDate localDate, Integer level, String supportNeed,
                              List<String> catalogIds, List<String> completedRecently, String mood,
                              Map<String, Integer> catalogDurations,
-                             List<String> preferredRoutineIds, Integer availableSeconds) {
+                             @JsonInclude(JsonInclude.Include.NON_EMPTY) List<String> preferredRoutineIds,
+                             Integer availableSeconds) {
     public RoutineRequest(String subjectKey, LocalDate localDate, Integer level, String supportNeed,
                           List<String> catalogIds, List<String> completedRecently) {
         this(subjectKey, localDate, level, supportNeed, catalogIds, completedRecently, null, Map.of(), List.of(), null);
