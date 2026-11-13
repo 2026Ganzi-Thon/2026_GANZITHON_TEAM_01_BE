@@ -88,7 +88,7 @@ public class ChatReplyWriter {
         if (card.type() == CardType.ROUTINE_RECOMMENDATION) {
             return Optional.ofNullable(card.routineId()).flatMap(catalog::findById).map(item ->
                     ChatMessage.of(userId, date, MessageRole.SOMI, MessageType.ROUTINE_RECOMMENDATION,
-                            item.getTitle(), json(routinePayload(item)), false, false, now));
+                            item.getTitle(), json(routinePayload(item, card.body())), false, false, now));
         }
         String content = card.body() != null ? card.body() : card.title();
         if (content == null) {
@@ -101,11 +101,14 @@ public class ChatReplyWriter {
                 json(payload), false, false, now));
     }
 
-    private static Map<String, Object> routinePayload(RoutineCatalogItem item) {
+    private static Map<String, Object> routinePayload(RoutineCatalogItem item, String reason) {
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("routineId", item.getRoutineId());
         payload.put("title", item.getTitle());
         payload.put("durationSec", item.getDurationSec());
+        if (reason != null && !reason.isBlank()) {
+            payload.put("reason", reason);
+        }
         return payload;
     }
 

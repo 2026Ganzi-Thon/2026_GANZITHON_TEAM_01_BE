@@ -14,7 +14,8 @@ public enum Metric {
     /** 시간대(0~23)별 총 사용 시간. 앱별 값은 받지 않는다. */
     SCREEN_TIME_MINUTES(DataSource.SCREEN_TIME, ValueKind.NUMBER, "min", true, true),
     CALENDAR_EVENT_COUNT(null, ValueKind.NUMBER, "count", false, true),
-    CALENDAR_BUSY_MINUTES(null, ValueKind.NUMBER, "min", false, true);
+    CALENDAR_BUSY_MINUTES(null, ValueKind.NUMBER, "min", false, true),
+    CALENDAR_AVERAGE_GAP_MINUTES(null, ValueKind.NUMBER, "min", false, true);
 
     public enum ValueKind { NUMBER, TIME }
 

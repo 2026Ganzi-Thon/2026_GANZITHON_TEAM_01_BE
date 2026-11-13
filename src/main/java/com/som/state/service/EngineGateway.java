@@ -37,22 +37,25 @@ public class EngineGateway {
     }
 
     public <T> Optional<T> call(String operation, Supplier<T> call, Predicate<T> valid) {
-        for (int attempt = 1; attempt <= properties.maxAttempts(); attempt++) {
+        boolean chat = "chat.respond".equals(operation);
+        var timeout = chat ? properties.chatTimeout() : properties.timeout();
+        int maxAttempts = chat ? 1 : properties.maxAttempts();
+        for (int attempt = 1; attempt <= maxAttempts; attempt++) {
             Future<T> future = executor.submit(call::get);
             try {
-                T result = future.get(properties.timeout().toMillis(), TimeUnit.MILLISECONDS);
+                T result = future.get(timeout.toMillis(), TimeUnit.MILLISECONDS);
                 if (valid.test(result)) {
                     return Optional.ofNullable(result);
                 }
                 log.warn("engine {} returned an invalid result (attempt {}/{})", operation, attempt,
-                        properties.maxAttempts());
+                        maxAttempts);
             } catch (TimeoutException e) {
                 future.cancel(true);
-                log.warn("engine {} timed out (attempt {}/{})", operation, attempt, properties.maxAttempts());
+                log.warn("engine {} timed out (attempt {}/{})", operation, attempt, maxAttempts);
             } catch (ExecutionException e) {
                 log.warn("engine {} failed with {} (attempt {}/{})", operation,
                         e.getCause() == null ? "unknown" : e.getCause().getClass().getSimpleName(),
-                        attempt, properties.maxAttempts());
+                        attempt, maxAttempts);
             } catch (InterruptedException e) {
                 future.cancel(true);
                 Thread.currentThread().interrupt();

@@ -1,10 +1,19 @@
 package com.som.engine.fatigue;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.List;
 
 /** 피로 계산 결과. A는 이 값을 가공하지 않고 그대로 저장·전달한다. */
+@JsonIgnoreProperties(ignoreUnknown = true)
 public record FatigueResult(Integer score, Integer level, BigDecimal woolDisplayKg, FatigueStatus status,
                             String statusText, String subText, String assetKey, List<String> usedSources,
-                            String algorithmVersion, OffsetDateTime calculatedAt) {}
+                            String algorithmVersion, OffsetDateTime calculatedAt, List<SignalChange> changes) {
+    public FatigueResult(Integer score, Integer level, BigDecimal woolDisplayKg, FatigueStatus status,
+                         String statusText, String subText, String assetKey, List<String> usedSources,
+                         String algorithmVersion, OffsetDateTime calculatedAt) {
+        this(score, level, woolDisplayKg, status, statusText, subText, assetKey, usedSources,
+                algorithmVersion, calculatedAt, List.of());
+    }
+}

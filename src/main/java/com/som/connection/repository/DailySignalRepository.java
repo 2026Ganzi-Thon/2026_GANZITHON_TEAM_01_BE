@@ -4,6 +4,8 @@ import com.som.connection.domain.ConnectionProvider;
 import com.som.connection.domain.DataSource;
 import com.som.connection.domain.Metric;
 import java.math.BigDecimal;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.sql.Types;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
@@ -76,10 +78,26 @@ public class DailySignalRepository {
                         WHERE user_id = ? AND local_date = ?
                         ORDER BY source, metric_key, hour_bucket NULLS FIRST
                         """,
-                (rs, rowNum) -> new Row(DataSource.valueOf(rs.getString(1)), Metric.valueOf(rs.getString(2)),
-                        rs.getBigDecimal(3), rs.getObject(4, OffsetDateTime.class), rs.getString(5),
-                        (Integer) rs.getObject(6, Integer.class)),
+                (rs, rowNum) -> signalRow(rs),
                 userId, localDate);
+    }
+
+    public record DatedRow(LocalDate localDate, Row signal) {}
+
+    public List<DatedRow> findMinuteHistory(Long userId, LocalDate from, LocalDate before) {
+        return jdbc.query("""
+                        SELECT source, metric_key, value, value_at, unit, hour_bucket, local_date FROM daily_signals
+                        WHERE user_id = ? AND local_date >= ? AND local_date < ? AND unit = 'min'
+                        ORDER BY local_date, source, metric_key, hour_bucket NULLS FIRST
+                        """,
+                (rs, rowNum) -> new DatedRow(rs.getObject(7, LocalDate.class), signalRow(rs)),
+                userId, from, before);
+    }
+
+    private static Row signalRow(ResultSet rs) throws SQLException {
+        return new Row(DataSource.valueOf(rs.getString(1)), Metric.valueOf(rs.getString(2)),
+                rs.getBigDecimal(3), rs.getObject(4, OffsetDateTime.class), rs.getString(5),
+                rs.getObject(6, Integer.class));
     }
 
     /**

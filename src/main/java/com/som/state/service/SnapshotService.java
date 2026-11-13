@@ -15,12 +15,14 @@ import com.som.engine.fatigue.CheckinInput;
 import com.som.engine.fatigue.FatigueEngine;
 import com.som.engine.fatigue.FatigueRequest;
 import com.som.engine.fatigue.FatigueResult;
+import com.som.engine.fatigue.SignalDay;
 import com.som.engine.fatigue.SignalInput;
 import com.som.state.domain.FatigueSnapshot;
 import com.som.state.repository.FatigueSnapshotRepository;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.TreeMap;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
@@ -42,6 +44,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 public class SnapshotService {
 
     private static final int MAX_ATTEMPTS = 3;
+    static final int BASELINE_DAYS = 14;
 
     private final UserRepository users;
     private final CheckinRepository checkins;
@@ -100,6 +103,14 @@ public class SnapshotService {
         return readTx.execute(status -> snapshots.findByUserIdAndLocalDate(userId, localDate));
     }
 
+    void refreshExisting(Long userId, LocalDate date) {
+        boolean exists = Boolean.TRUE.equals(readTx.execute(
+                status -> snapshots.findByUserIdAndLocalDate(userId, date).isPresent()));
+        if (exists) {
+            recalculate(userId, date);
+        }
+    }
+
     private record SaveOutcome(boolean saved, Optional<FatigueSnapshot> snapshot) {}
 
     private FatigueRequest buildRequest(Long userId, LocalDate localDate) {
@@ -107,16 +118,31 @@ public class SnapshotService {
             Set<DataSource> consented = consents.consentedSources(userId);
             List<SignalInput> signalInputs = signals.findByUserIdAndLocalDate(userId, localDate).stream()
                     .filter(row -> consented.contains(row.source()))
-                    .map(row -> new SignalInput(row.source().name(), row.metric().name(), row.value(),
-                            dates.inServiceZone(row.valueAt()), row.unit(), row.hourBucket()))
+                    .map(this::signalInput)
                     .toList();
             CheckinInput checkin = checkins.findByUserIdAndLocalDate(userId, localDate)
                     .map(SnapshotService::toInput).orElse(null);
             Set<String> consentedNames = consented.stream().map(Enum::name)
                     .collect(Collectors.toCollection(TreeSet::new));
             return new FatigueRequest(user.getSubjectKey(), localDate, clock.getZone(), checkin, signalInputs,
-                    consentedNames);
+                    consentedNames, history(userId, localDate, consented));
         }).orElse(null);
+    }
+
+    private List<SignalDay> history(Long userId, LocalDate date, Set<DataSource> consented) {
+        if (consented.isEmpty()) {
+            return List.of();
+        }
+        return signals.findMinuteHistory(userId, date.minusDays(BASELINE_DAYS), date).stream()
+                .filter(row -> consented.contains(row.signal().source()))
+                .collect(Collectors.groupingBy(DailySignalRepository.DatedRow::localDate, TreeMap::new,
+                        Collectors.mapping(row -> signalInput(row.signal()), Collectors.toList())))
+                .entrySet().stream().map(entry -> new SignalDay(entry.getKey(), entry.getValue())).toList();
+    }
+
+    private SignalInput signalInput(DailySignalRepository.Row row) {
+        return new SignalInput(row.source().name(), row.metric().name(), row.value(),
+                dates.inServiceZone(row.valueAt()), row.unit(), row.hourBucket());
     }
 
     private static CheckinInput toInput(Checkin checkin) {
@@ -129,6 +155,9 @@ public class SnapshotService {
     }
 
     private SaveOutcome save(Long userId, LocalDate localDate, FatigueRequest used, Optional<FatigueResult> result) {
+        // 철회 처리와 잠금을 공유해서 새 스냅샷에 삭제된 변화 근거가 다시 남지 않게 한다.
+        used.consentedSources().stream().map(DataSource::valueOf).sorted()
+                .forEach(source -> signals.lockSource(userId, source));
         locks.lock("snapshot:" + userId + ":" + localDate);
         if (!used.equals(buildRequest(userId, localDate))) {
             return new SaveOutcome(false, Optional.empty()); // 계산 중에 입력이 바뀌었다: 버리고 다시 계산
@@ -141,11 +170,11 @@ public class SnapshotService {
         FatigueResult r = result.get();
         FatigueSnapshot snapshot = existing.orElseGet(() -> FatigueSnapshot.of(userId, localDate));
         snapshot.replace(r.score(), r.level(), r.woolDisplayKg(), r.status(), r.statusText(), r.subText(),
-                r.assetKey(), toJson(r.usedSources()), r.algorithmVersion(), r.calculatedAt(), dates.now());
+                r.assetKey(), toJson(r.usedSources()), r.algorithmVersion(), r.calculatedAt(), dates.now(), toJson(r.changes()));
         return new SaveOutcome(true, Optional.of(snapshots.save(snapshot)));
     }
 
-    private String toJson(List<String> values) {
+    private String toJson(List<?> values) {
         try {
             return objectMapper.writeValueAsString(values == null ? List.of() : values);
         } catch (JsonProcessingException e) {

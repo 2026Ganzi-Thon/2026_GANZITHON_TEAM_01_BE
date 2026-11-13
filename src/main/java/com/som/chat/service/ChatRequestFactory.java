@@ -18,7 +18,7 @@ import com.som.engine.chat.ChatRole;
 import com.som.engine.chat.ChatTurn;
 import com.som.engine.chat.WeekSummary;
 import com.som.engine.fatigue.CheckinInput;
-import com.som.state.dto.InsightResponse;
+import com.som.routine.service.RoutineRecommendationService;
 import com.som.state.service.InsightService;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -43,15 +43,18 @@ public class ChatRequestFactory {
     private final InsightService insights;
     private final SourceConsentChecker consents;
     private final ChatProperties properties;
+    private final RoutineRecommendationService routines;
 
     public ChatRequestFactory(UserRepository users, CheckinRepository checkins, ChatMessageRepository messages,
-                              InsightService insights, SourceConsentChecker consents, ChatProperties properties) {
+                              InsightService insights, SourceConsentChecker consents, ChatProperties properties,
+                              RoutineRecommendationService routines) {
         this.users = users;
         this.checkins = checkins;
         this.messages = messages;
         this.insights = insights;
         this.consents = consents;
         this.properties = properties;
+        this.routines = routines;
     }
 
     // TODO(DECISION): 사용자 원문을 engine(외부 LLM)에 보낼지·고지 방식(A_SPEC §8) — 기본: 보내지 않음
@@ -62,7 +65,7 @@ public class ChatRequestFactory {
         Set<String> consented = consents.consentedSources(userId).stream().map(Enum::name)
                 .collect(Collectors.toCollection(TreeSet::new));
         return new ChatRequest(subjectKey, mode, date, sendText ? userText : null, recentTurns(userId, sendText),
-                checkin(userId, date), weekSummary(userId), consented);
+                checkin(userId, date), weekSummary(userId), consented, routines.context(userId, date));
     }
 
     private List<ChatTurn> recentTurns(Long userId, boolean sendText) {
@@ -93,8 +96,7 @@ public class ChatRequestFactory {
     /** 이번 주 요약을 못 구하면(engine 실패) null. */
     private WeekSummary weekSummary(Long userId) {
         try {
-            InsightResponse week = insights.week(userId);
-            return new WeekSummary(week.averageLevel(), week.recordedDays());
+            return insights.weekSummary(userId);
         } catch (ApiException e) {
             return null;
         }

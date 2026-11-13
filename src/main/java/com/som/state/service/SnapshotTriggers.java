@@ -36,6 +36,15 @@ public class SnapshotTriggers {
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void onSignalsIngested(SignalsIngestedEvent event) {
         recalculate("signals", event.userId(), event.localDate());
+        LocalDate today = dates.today();
+        if (event.localDate().isBefore(today)
+                && !event.localDate().isBefore(today.minusDays(SnapshotService.BASELINE_DAYS))) {
+            try {
+                snapshotService.refreshExisting(event.userId(), today);
+            } catch (RuntimeException e) {
+                log.warn("snapshot recalculation after signal history failed with {}", e.getClass().getSimpleName());
+            }
+        }
     }
 
     /** 철회된 소스는 SnapshotService가 이미 제외한다. 오늘 상태에서 바로 빠지도록 오늘만 다시 계산한다. */
