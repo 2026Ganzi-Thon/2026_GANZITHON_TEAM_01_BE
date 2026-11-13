@@ -20,12 +20,15 @@ import java.util.Objects;
 import java.util.Optional;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 /**
  * 마음 정리(A_SPEC §9). 저장하면 그날 털 깎임 연출(wool_trim_events)을 한 번 기록한다.
  * - 기록은 engine에 넘기지 않는다(CRITICAL). 텍스트는 로그·예외 메시지에 넣지 않는다.
  * - 털 깎임은 연출 값일 뿐 스냅샷(score·level)을 바꾸지 않는다(CRITICAL).
+ * - 기록을 먼저 커밋한 뒤 트랜잭션 밖에서 engine에 묻는다: engine 대기(타임아웃×재시도) 동안 DB 연결을 잡지 않는다.
  */
 @Service
 @EnableConfigurationProperties(JournalProperties.class)
@@ -41,10 +44,12 @@ public class JournalService {
     private final Optional<WoolTrimEngine> trimEngine;
     private final UserRepository users;
     private final EngineGateway gateway;
+    private final TransactionTemplate tx;
 
     public JournalService(JournalEntryRepository entries, WoolTrimEventRepository woolTrims,
                           RoutineSessionService routines, ServiceDates dates, JournalProperties properties,
-                          Optional<WoolTrimEngine> trimEngine, UserRepository users, EngineGateway gateway) {
+                          Optional<WoolTrimEngine> trimEngine, UserRepository users, EngineGateway gateway,
+                          PlatformTransactionManager transactionManager) {
         this.entries = entries;
         this.woolTrims = woolTrims;
         this.routines = routines;
@@ -53,10 +58,24 @@ public class JournalService {
         this.trimEngine = trimEngine;
         this.users = users;
         this.gateway = gateway;
+        this.tx = new TransactionTemplate(transactionManager);
     }
 
-    @Transactional
     public JournalResponse write(Long userId, JournalRequest request) {
+        Saved saved = tx.execute(status -> save(userId, request));
+        if (saved.trimmed()) {
+            return toResponse(saved.entry(), true);
+        }
+        if (!shouldTrim(userId, saved.entry().getLocalDate())) {
+            return toResponse(saved.entry(), false);
+        }
+        woolTrims.recordOnce(userId, saved.entry().getLocalDate(), TRIM_SOURCE, saved.entry().getCreatedAt());
+        return toResponse(saved.entry(), true);
+    }
+
+    private record Saved(JournalEntry entry, boolean trimmed) {}
+
+    private Saved save(Long userId, JournalRequest request) {
         LocalDate today = dates.today();
         if (!routines.journalUnlocked(userId, today)) {
             throw new ApiException(ErrorCode.JOURNAL_LOCKED);
@@ -68,12 +87,7 @@ public class JournalService {
         }
         OffsetDateTime now = dates.now();
         JournalEntry saved = entries.saveAndFlush(JournalEntry.of(userId, today, request.emotion(), text, now));
-        boolean trimmed = woolTrims.exists(userId, today);
-        if (!trimmed && shouldTrim(userId, today)) {
-            woolTrims.recordOnce(userId, today, TRIM_SOURCE, now);
-            trimmed = true;
-        }
-        return toResponse(saved, trimmed);
+        return new Saved(saved, woolTrims.exists(userId, today));
     }
 
     private boolean shouldTrim(Long userId, LocalDate date) {
