@@ -52,7 +52,8 @@
 - [ ] 가입·수신 요청 제한 값 확정 (현재 `[제안]`)
 - [ ] 홈 말풍선 문구(`som.state.bubble-text`)는 `[제안]` 임시 문구 — B·디자인과 확정
 - [x] A↔B HTTP 연동(B가 `BE_AB`로 구현, A가 보완, 2026-11-13)
-- [ ] B 서버를 실제로 띄워 A real 모드로 전 흐름 확인(지금은 MockRestServiceServer 테스트만)
+- [x] B 서버를 실제로 띄워 A real 모드로 전 흐름 확인(2026-11-13, 40/40)
+- [ ] B `requirements.txt`에 `tzdata` 추가 요청(Windows Python은 시간대 DB가 없어 피로 계산이 500)
 - [ ] 연동 지표 맞추기: B는 분 단위 지표만 쓴다(걸음 수·잠든/깬 시각·일정 수는 B로 보내지 않음). 야간 휴대폰 사용·일정 사이 여유 시간은 A가 아직 만들지 않음
 - [ ] 마음 정리 저장 트랜잭션 안에서 털 깎임 B 호출(최대 2초×2회)이 일어난다 → 트랜잭션 밖으로 뺄지 검토
 - [x] `backend-b/`(B 서버 코드) 위치: `main`의 `backend-b/`로 일원화, `BE_B` 브랜치는 쓰지 않음(2026-11-13 팀 결정)
@@ -371,3 +372,15 @@
 ### 2026-11-13 — B 코드 위치 결정
 - B 서버 코드(Python FastAPI)는 이 저장소 `main`의 `backend-b/`에서 관리한다. A·B 연동 변경을 한 저장소에서 같이 맞추기 위해서다.
 - `BE_B` 브랜치는 더 이상 쓰지 않는다(정리는 B가 확인한 뒤).
+
+### 2026-11-13 — A real 모드 + B 실서버 통합 점검
+- 로컬에서 B(FastAPI, `backend-b/`, Ollama 미사용 템플릿 응답)와 A(`SOM_ENGINE_MODE=real`)를 같이 띄우고 공개 API로 전 흐름을 돌렸다.
+  - 가입 → 로그인 → 약관 동의 → 수면·사용 시간 연결 → 7일 신호 수집 → 체크인 → 오늘 상태 → 이번 주·7일 기록 → 루틴 4개 시작·완료 → 대화 → 마음 정리 → 탈퇴
+  - B 호출 6종(피로 계산·기간 요약·루틴 추천·대화·털 깎임·처리물 삭제) 모두 200/204
+- 결과: 40/40 통과
+  - 오늘 상태는 B 결과(점수·단계·털 무게·`usedSources`·`algorithmVersion`) 그대로, `isStale=false`
+  - 소미 인사·이번 주 카드에 B가 만든 근거 문구(수면 시간 변화)가 들어간다
+  - 마음 정리 완료 후 `woolTrimmedToday=true`, 점수·단계는 그대로
+  - 탈퇴 시 B `DELETE /v1/subjects/{subjectKey}` 204
+- 발견 1(B): Windows Python에 시간대 DB가 없어 B가 `Asia/Seoul`을 못 찾고 500 → A는 재시도 후 503 `ENGINE_UNAVAILABLE`(이전 스냅샷 없음)로 정상 대응. `tzdata` 설치로 해결 → B에 `requirements.txt` 추가 요청
+- 발견 2(B와 확인): 휴대폰 사용 시간을 보냈지만 `usedSources`에 `SCREEN_TIME`이 없다(B 지표 기준 — 연동 지표 맞추기 항목과 같이 확인)
