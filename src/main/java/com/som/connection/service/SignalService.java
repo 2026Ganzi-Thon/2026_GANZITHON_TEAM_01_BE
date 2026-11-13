@@ -32,6 +32,9 @@ import org.springframework.transaction.annotation.Transactional;
 @EnableConfigurationProperties(SignalProperties.class)
 public class SignalService {
 
+    private static final int MINUTES_PER_HOUR = 60;
+    private static final int MINUTES_PER_DAY = 1440;
+
     private final SourceConsentChecker consentChecker;
     private final DailySignalRepository signals;
     private final SignalProperties properties;
@@ -99,6 +102,13 @@ public class SignalService {
             if (metric.hourly() != (entry.hourBucket() != null)) {
                 throw invalid(metric.hourly() ? "entries.hourBucket: 값이 필요합니다"
                         : "entries.hourBucket: 이 지표에는 보낼 수 없습니다");
+            }
+            // 분 단위 값의 물리적 상한: 시간 칸 60분, 하루 1440분. 넘는 값은 engine이 버리므로 받지 않는다.
+            if ("min".equals(metric.unit()) && entry.value() != null) {
+                int limit = metric.hourly() ? MINUTES_PER_HOUR : MINUTES_PER_DAY;
+                if (entry.value().compareTo(BigDecimal.valueOf(limit)) > 0) {
+                    throw invalid("entries.value: " + limit + "분을 넘을 수 없습니다");
+                }
             }
             if (!keys.add(metric.name() + ":" + entry.hourBucket())) {
                 throw invalid("entries: 같은 지표가 중복되었습니다");

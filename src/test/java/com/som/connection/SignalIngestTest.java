@@ -232,6 +232,30 @@ class SignalIngestTest {
     }
 
     @Test
+    void 분_단위_값이_시간칸_60분이나_하루_1440분을_넘으면_400_부분저장_없음() throws Exception {
+        MockHttpSession session = signupWithRequiredConsents("sgrange01");
+        Long userId = userId("sgrange01");
+        connect(session, "SCREEN_TIME");
+        connect(session, "CALENDAR_WORK");
+
+        assertError(ingest(session, body("SCREEN_TIME", TODAY,
+                "{\"metric\":\"SCREEN_TIME_MINUTES\",\"value\":30,\"hourBucket\":22}",
+                "{\"metric\":\"SCREEN_TIME_MINUTES\",\"value\":61,\"hourBucket\":23}")), 400, "VALIDATION_ERROR");
+        assertError(ingest(session, body("CALENDAR_WORK", TODAY,
+                "{\"metric\":\"CALENDAR_BUSY_MINUTES\",\"value\":1441}")), 400, "VALIDATION_ERROR");
+        assertThat(count(userId)).isZero();
+
+        assertThat(ingest(session, body("SCREEN_TIME", TODAY,
+                "{\"metric\":\"SCREEN_TIME_MINUTES\",\"value\":60,\"hourBucket\":23}")).getResponse().getStatus())
+                .isEqualTo(200);
+        assertThat(ingest(session, body("CALENDAR_WORK", TODAY,
+                "{\"metric\":\"CALENDAR_BUSY_MINUTES\",\"value\":1440}",
+                "{\"metric\":\"CALENDAR_EVENT_COUNT\",\"value\":2000}")).getResponse().getStatus())
+                .isEqualTo(200);
+        assertThat(count(userId)).isEqualTo(3);
+    }
+
+    @Test
     void hourBucket이_없는_지표에_hourBucket을_보내면_400() throws Exception {
         MockHttpSession session = signupWithRequiredConsents("sghour01");
         connect(session, "STEPS");
