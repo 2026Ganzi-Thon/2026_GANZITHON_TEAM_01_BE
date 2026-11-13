@@ -17,7 +17,7 @@ public class UserDataEraser {
 
     /** 기록(DATA) 삭제 대상. 계정 설정성 데이터(connections·notification_settings·user_consents)는 남긴다. */
     private static final List<String> DATA_TABLES = List.of(
-            "recommendation_responses", "chat_messages", "wool_trim_events", "journal_entries", "routine_sessions",
+            "recovery_shares", "recommendation_responses", "chat_messages", "wool_trim_events", "journal_entries", "routine_sessions",
             "routine_recommendations", "fatigue_snapshots", "daily_signals", "idempotency_keys", "checkins");
 
     // TODO(DECISION): 탈퇴 시 동의 이력 보존 여부(A_SPEC §14) — 기본: 삭제(users FK). 보존하려면 익명화 테이블로 옮겨야 한다
