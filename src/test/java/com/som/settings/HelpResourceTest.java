@@ -49,8 +49,8 @@ class HelpResourceTest {
         assertThat(list).hasSize(4);
         assertThat(list.get(0).path("name").asText()).isEqualTo("정신 건강 복지 센터");
         assertThat(list.get(0).path("actionType").asText()).isEqualTo("LINK");
-        assertThat(list.get(0).path("actionValue").isNull()).isTrue();
-        assertThat(list.get(1).path("actionValue").isNull()).isTrue();
+        assertThat(list.get(0).path("actionValue").asText()).startsWith("https://");
+        assertThat(list.get(1).path("actionValue").asText()).startsWith("https://");
         assertThat(list.get(2).path("actionType").asText()).isEqualTo("TEL");
         assertThat(list.get(2).path("actionValue").asText()).isEqualTo("1350");
         assertThat(list.get(3).path("name").asText()).isEqualTo("자살예방상담전화");
