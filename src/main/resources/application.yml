@@ -101,6 +101,9 @@ som:
     deletion:
       # TODO(DECISION): 삭제 요청 제한 값 미확정(A_SPEC §11). 아래는 [제안] 값
       per-user:     { capacity: 3, refill-period: 1h }
+    recovery-share:
+      # TODO(DECISION): 익명 공유 글쓰기 제한 값 미확정. 아래는 [제안] 값
+      per-user:     { capacity: 10, refill-period: 1h }
   checkin:
     max-stressors: 1             # TODO(DECISION): Q2 최대 선택 개수 미정(A_SPEC §6). 기본 1
     max-range-days: 31           # GET /checkins?from=&to= 최대 기간(명세에 값 없음 → 설정값)

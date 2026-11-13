@@ -66,6 +66,8 @@
 
 ## 4. 온보딩 5문항 — MVP 포함 `[결정 필요]`
 
+> 2026-11-13: 팀(B)이 포함해 구현했다(V19). 선택지 enum은 아래 `[제안]` 값 그대로다.
+
 포함이 결정되면 저장(모든 필드 nullable — 각 문항 건너뛰기 가능). engine 입력으로 쓰인다.
 
 | 문항 | 방식 | 선택지 → enum `[제안]` |
@@ -246,7 +248,7 @@
 | 인증 | `POST /api/v1/auth/signup`, `POST /api/v1/auth/login`, `POST /api/v1/auth/logout`, `GET /api/v1/auth/csrf` |
 | 계정 | `GET /api/v1/me` (필수 동의 완료 여부 포함) |
 | 동의 | `GET·PATCH /api/v1/me/consents` |
-| 온보딩 | `GET·PUT /api/v1/me/onboarding` (§4 결정 시) |
+| 온보딩 | `GET·PUT /api/v1/me/onboarding` |
 | 연결 | `GET /api/v1/me/connections`, `POST·DELETE /api/v1/me/connections/{source}` |
 | 수집 | `POST /api/v1/signals` (데모·개발용) |
 | 체크인 | `POST /api/v1/checkins`, `GET /api/v1/checkins?date=` / `?from=&to=` |
@@ -257,23 +259,26 @@
 | 마음 정리 | `POST /api/v1/journal`, `GET /api/v1/journal?date=` |
 | 설정 | `GET·PATCH /api/v1/me/notification-settings`, `GET /api/v1/help-resources` |
 | 삭제 | `DELETE /api/v1/me/data`, `DELETE /api/v1/me`, `GET /api/v1/me/deletion-status` |
+| 익명 공유 | `GET·POST /api/v1/recovery-shares`, `DELETE /api/v1/recovery-shares/{id}` (업무명세서상 P1 '털 담요') |
 
 공통: JSON, ISO 8601(오프셋 포함), `localDate`(YYYY-MM-DD, KST), `X-Request-ID`, `Idempotency-Key`, 커서 페이지네이션.
 에러 형식: `{"error": {"code": "VALIDATION_ERROR", "message": "...", "requestId": "..."}}` — 401 / 403(`CONSENT_REQUIRED` 등) / 404 / 400 / 409 / 415 / 429 / 503(engine 장애).
 
-### 13-1. 구현 현황 (2026-11-12, 백엔드 A)
+### 13-1. 구현 현황 (2026-11-13, 백엔드 A·B)
 
-위 표의 경로는 **온보딩을 빼고 모두 그대로 구현**했다. 실제 요청·응답 형식은 OpenAPI 문서(`/v3/api-docs`, `/swagger-ui.html`)를 기준으로 한다.
+위 표의 경로는 **모두 구현**했다(온보딩·익명 공유·삭제 재시도는 B가 구현, A가 테스트 보강). 실제 요청·응답 형식은 OpenAPI 문서(`/v3/api-docs`, `/swagger-ui.html`)를 기준으로 한다.
 
 | 항목 | 구현 |
 |---|---|
-| 온보딩 `GET·PUT /api/v1/me/onboarding` | 미구현 — §4 `[결정 필요]` |
+| 온보딩 `GET·PUT /api/v1/me/onboarding` | 모든 문항 null 허용(건너뛰기). PUT은 전체 교체. Q4는 3·5·10·30만. Q5는 알림 설정이 없을 때 기본 시간대, Q3·Q4는 루틴 추천 입력(B). 기록 삭제로는 남고 탈퇴 시 삭제 |
+| 익명 공유 `recovery-shares` | 한 줄 200자, 최근 30개, 작성자 정보 없이 `mine`만. 본인 글만 삭제. 기록 삭제·탈퇴 시 삭제 |
+| engine 삭제 재시도 | B 삭제 실패 시 `ENGINE_PENDING`, 1분 뒤 재시도·이후 5분 간격(real 모드). 성공하면 `COMPLETED` |
 | 아이디/비밀번호 찾기 | 미구현. 경로가 정해지지 않아 "준비 중" 에러도 없다(호출하면 404) — 경로 결정 필요 |
 | `Idempotency-Key` | `POST /api/v1/checkins`에서만 받는다(선택). 루틴 완료는 사용자·루틴·날짜 유니크로 멱등 |
 | 커서 페이지네이션 | `GET /api/v1/chat/messages`(`cursor`, `size` 기본 30·최대 100, 응답 `nextCursor`) |
 | 삭제·탈퇴 확인 | `DELETE /api/v1/me/data`, `DELETE /api/v1/me`는 바디 `{"confirm": true}` 필수 |
 | 필수 약관 게이트 예외 | `/api/v1/auth/**`, `/api/v1/me`, `/api/v1/me/consents`, `/api/v1/me/data`, `/api/v1/me/deletion-status`, `/api/v1/help-resources` |
-| 요청 제한 `[제안]` | 로그인(IP·아이디), 가입(IP), 수신(사용자), 대화(사용자 분당·일일), 삭제·탈퇴(사용자). 값은 설정 `som.rate-limit.*` |
+| 요청 제한 `[제안]` | 로그인(IP·아이디), 가입(IP), 수신(사용자), 대화(사용자 분당·일일), 삭제·탈퇴(사용자), 익명 공유 글쓰기(사용자). 값은 설정 `som.rate-limit.*` |
 | 422 | 쓰지 않는다. 형식·규칙 위반은 모두 400 |
 
 **에러 코드** (`error.code`, 메시지는 기본 문구이며 검증 오류는 `"{필드}: {이유}"`로 바뀐다)
@@ -352,7 +357,7 @@
 - [x] 체크인 저장/수정/건너뛰기, 동의 철회, 결측 처리
 - [x] 이번 주·7/30일, 날짜별 대화, 루틴·잠금, 마음 정리·연출, 알림, 삭제 API 동작
 - [x] 오류 처리·요청 제한·OpenAPI 문서·테스트
-- [ ] 보안 게이트: 테스트 계정 2개 접근 제어 ✅, 철회 후 재수집 차단 ✅, 전체 삭제 후 재조회 불가 ✅, 비밀값 노출 검사 ✅, 로그 마스킹 ✅, 도움 기관 번호 ✅ / **링크 URL 2건 미입력**(공식 URL 확인 후 마이그레이션)
+- [x] 보안 게이트: 테스트 계정 2개 접근 제어 ✅, 철회 후 재수집 차단 ✅, 전체 삭제 후 재조회 불가 ✅, 비밀값 노출 검사 ✅, 로그 마스킹 ✅, 도움 기관 번호·링크 ✅(링크는 V18, 시연 전 실제 접속 확인)
   - 점검 2026-11-13: 테스트 396개 통과, A real 모드 + B 실서버 통합 흐름 40/40, A·B 로그에서 대화·마음 정리 원문·비밀번호·세션·engine 토큰 미검출, 저장소 전체 이력 비밀값 미검출
 
 필수 테스트: 만료 세션, CSRF 누락, 아이디 3/4/13/14자·비밀번호 9/10/12/13자 경계, enum 외 값, '안 보는 것' 필드, 초과 길이, 중복 제출, 루틴 중복 완료, 4개 미완료 마음 정리, engine 장애 isStale, 미기록일 null, 요청 제한.
