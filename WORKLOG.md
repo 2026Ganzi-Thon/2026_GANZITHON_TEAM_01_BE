@@ -51,7 +51,11 @@
 - [x] 컨트롤러를 `controller/` 하위로 정리 (2026-11-12 완료)
 - [ ] 가입·수신 요청 제한 값 확정 (현재 `[제안]`)
 - [ ] 홈 말풍선 문구(`som.state.bubble-text`)는 `[제안]` 임시 문구 — B·디자인과 확정
-- [ ] engine 계약 확정: B가 초안을 바탕으로 FastAPI API를 만들고 `/openapi.json`을 공유 → A가 real 모드 HTTP 클라이언트 구현
+- [x] A↔B HTTP 연동(B가 `BE_AB`로 구현, A가 보완, 2026-11-13)
+- [ ] B 서버를 실제로 띄워 A real 모드로 전 흐름 확인(지금은 MockRestServiceServer 테스트만)
+- [ ] 연동 지표 맞추기: B는 분 단위 지표만 쓴다(걸음 수·잠든/깬 시각·일정 수는 B로 보내지 않음). 야간 휴대폰 사용·일정 사이 여유 시간은 A가 아직 만들지 않음
+- [ ] 마음 정리 저장 트랜잭션 안에서 털 깎임 B 호출(최대 2초×2회)이 일어난다 → 트랜잭션 밖으로 뺄지 검토
+- [ ] `backend-b/`(B 서버 코드)를 A 저장소에 둘지 팀 결정
 - [x] 4단계 삭제 대상 전체 반영(`UserDataEraserTest` 안전망: user_id 컬럼이 있는 테이블은 모두 삭제 목록에 있어야 통과)
 - [ ] 도움 기관 링크 URL 2건 확인 후 마이그레이션으로 넣기(현재 NULL)
 - [ ] 삭제 ENGINE_PENDING 재시도 방식 결정(현재 기록만)
@@ -349,3 +353,17 @@
   - 내용: 공통 규칙, 엔드포인트 5개, 피로 계산·기간 요약·루틴 추천·대화의 요청·응답 JSON, 데이터 삭제 제안, B와 정할 것
 - 이후 계약은 B가 주도한다. B는 초안 형식(필드 이름·결측 null 규칙)을 출발점으로 FastAPI 서버를 만들고, 자동 생성되는 `/openapi.json`을 기준 문서로 공유한다.
 - B가 형식을 바꾸면 A의 `engine` DTO·Mock도 같이 고친다(필드 추가는 영향 적음, 이름 변경·삭제는 수정 필요).
+
+### 2026-11-13 — A↔B HTTP 연동 병합·보완
+- B가 `BE_AB` 브랜치(`main` 기준)에 A↔B HTTP 연동을 올렸다 → `main`에 병합
+  - `HttpEngine`(engine 인터페이스 6개 HTTP 구현, `som.engine.mode=real`), B 서버 코드 `backend-b/`
+  - 털 깎임 연출을 B에 묻기(`WoolTrimEngine`), 개인 기준용 최근 14일 신호 전송, 변화 근거 저장(`V17`)
+  - 대화는 타임아웃 15초·재시도 없음, real 모드는 토큰 필수
+  - 같은 작업을 A도 해 두었지만(push 전) B 쪽이 범위가 넓어 B 것을 기준으로 삼고 A 것은 버렸다.
+- A 보완:
+  - HTTP 구성을 `EngineHttpConfig`로 분리(테스트 가능하게). 주소·토큰 검증은 B 코드 그대로
+  - engine 전용 ObjectMapper: 응답의 모르는 필드 무시(전역 설정은 거부 → B가 필드만 늘려도 실패했음), null 필드 미전송
+  - 2xx 외 응답은 `EngineHttpException`(상태 코드만, 응답 본문 제외)
+  - 대화 원문 전송 설정의 `TODO(DECISION)` 주석 복원(기본 false 유지)
+  - 테스트 추가: `HttpEngineTest`(6개 호출의 요청·응답 JSON, 인증 헤더, 오류), `EngineHttpConfigTest`(real/mock 빈, 잘못된 주소·빈 토큰이면 시작 실패)
+- `./gradlew clean build` ✅ 테스트 396개 통과(신규 11개)

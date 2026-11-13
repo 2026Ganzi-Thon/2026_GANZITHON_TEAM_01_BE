@@ -116,7 +116,7 @@ som:
   chat:
     max-length: 500              # TODO(DECISION): 대화 입력 최대 길이 미정(A_SPEC §8). 기본 500자
     recent-turns: 10             # engine에 넘기는 최근 메시지 수(B 합의 대기)
-    send-user-text-to-engine: ${SOM_CHAT_SEND_USER_TEXT_TO_ENGINE:false}
+    send-user-text-to-engine: ${SOM_CHAT_SEND_USER_TEXT_TO_ENGINE:false}  # TODO(DECISION): 사용자 원문을 engine(LLM)에 보낼지·고지 방식 미정(A_SPEC §8). 기본: 보내지 않음
     fallback-text: "지금은 잠시 답변이 어려워요. 호흡 루틴을 먼저 해볼까요?"   # engine 실패 시 고정 문구(A_SPEC §8)
     page-size: 30
     max-page-size: 100

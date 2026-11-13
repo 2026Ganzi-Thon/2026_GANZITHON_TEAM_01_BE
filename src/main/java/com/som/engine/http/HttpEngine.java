@@ -14,46 +14,21 @@ import com.som.engine.routine.RoutineEngine;
 import com.som.engine.routine.RoutineRecommendation;
 import com.som.engine.routine.RoutineRequest;
 import com.som.engine.routine.WoolTrimEngine;
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.time.Duration;
 import java.time.LocalDate;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
-import org.springframework.http.client.JdkClientHttpRequestFactory;
-import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
-@Component
-@ConditionalOnProperty(prefix = "som.engine", name = "mode", havingValue = "real")
+/**
+ * B(FastAPI) HTTP 구현. 구성(주소·토큰·타임아웃·JSON 규칙)은 EngineHttpConfig가 맡는다(real 모드에서만 생성).
+ * 실패(연결·시간 초과·2xx 외 상태)는 예외로 던지고, 타임아웃·재시도·응답 검증은 EngineGateway와 호출 서비스가 맡는다.
+ */
 public class HttpEngine implements FatigueEngine, InsightEngine, RoutineEngine, ChatEngine, EngineDataEraser, WoolTrimEngine {
 
     private final RestClient client;
 
-    public HttpEngine(RestClient.Builder builder, @Value("${som.engine.url}") URI url,
-                      @Value("${som.engine.token}") String token) {
-        if (url.getHost() == null || !("http".equals(url.getScheme()) || "https".equals(url.getScheme()))
-                || url.getUserInfo() != null || url.getQuery() != null || url.getFragment() != null) {
-            throw new IllegalArgumentException("som.engine.url must be an HTTP(S) service address");
-        }
-        if (token.isBlank() || token.chars().anyMatch(c -> c < 33 || c > 126)) {
-            throw new IllegalArgumentException("som.engine.token must be set in real mode");
-        }
-        HttpClient transport = HttpClient.newBuilder()
-                .version(HttpClient.Version.HTTP_1_1)
-                .connectTimeout(Duration.ofSeconds(1))
-                .followRedirects(HttpClient.Redirect.NEVER)
-                .build();
-        JdkClientHttpRequestFactory requests = new JdkClientHttpRequestFactory(transport);
-        requests.setReadTimeout(Duration.ofSeconds(14));
-        this.client = builder.baseUrl(url.toString())
-                .requestFactory(requests)
-                .defaultHeader(HttpHeaders.AUTHORIZATION, "Bearer " + token)
-                .defaultHeader(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE)
-                .build();
+    public HttpEngine(RestClient client) {
+        this.client = client;
     }
 
     @Override
