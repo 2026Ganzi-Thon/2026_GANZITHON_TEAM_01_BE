@@ -1,0 +1,17 @@
+**
+!Dockerfile
+!gradlew
+!build.gradle
+!settings.gradle
+!gradle/
+!gradle/**
+!src/
+!src/main/
+!src/main/**
+!backend-b/
+!backend-b/requirements.txt
+!backend-b/som_engine/
+!backend-b/som_engine/**
+**/__pycache__
+!deploy/
+!deploy/render-start.sh
