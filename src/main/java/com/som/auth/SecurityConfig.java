@@ -1,6 +1,8 @@
 package com.som.auth;
 
 import com.som.auth.repository.UserRepository;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import com.som.auth.service.LoginUserDetailsService;
 import com.som.consent.service.RequiredConsentChecker;
 import java.util.List;
@@ -43,13 +45,19 @@ public class SecurityConfig {
     SecurityFilterChain securityFilterChain(HttpSecurity http, SecurityErrorHandler errorHandler,
                                             RequiredConsentChecker consentChecker,
                                             ConsentGateProperties gateProperties,
-                                            UserRepository users) throws Exception {
+                                            UserRepository users, UrlBasedCorsConfigurationSource apiCorsSource,
+                                            @Value("${som.cors.csrf-cross-site:false}") boolean crossSite) throws Exception {
+        var csrfCookies = CookieCsrfTokenRepository.withHttpOnlyFalse();
+        if (crossSite) {
+            csrfCookies.setCookieCustomizer(cookie -> cookie.sameSite("None").secure(true));
+        }
         http
+                .cors(cors -> cors.configurationSource(apiCorsSource))
                 .formLogin(AbstractHttpConfigurer::disable)
                 .httpBasic(AbstractHttpConfigurer::disable)
                 .logout(AbstractHttpConfigurer::disable)
                 .csrf(csrf -> csrf
-                        .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
+                        .csrfTokenRepository(csrfCookies)
                         .csrfTokenRequestHandler(new SpaCsrfTokenRequestHandler()))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(PUBLIC_API_PATHS.toArray(String[]::new)).permitAll()
