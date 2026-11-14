@@ -21,6 +21,9 @@ public class User {
     @Column(name = "login_id", nullable = false, length = 64, unique = true)
     private String loginId;
 
+    @Column(length = 30)
+    private String nickname;
+
     @Column(name = "password_hash", nullable = false)
     private String passwordHash;
 
@@ -53,6 +56,10 @@ public class User {
     public void recordLogin(OffsetDateTime now) {
         this.lastLoginAt = now;
     }
+
+    public String getNickname() { return nickname; }
+
+    public void changeNickname(String nickname) { this.nickname = nickname; }
 
     public Long getId() { return id; }
     public String getLoginId() { return loginId; }

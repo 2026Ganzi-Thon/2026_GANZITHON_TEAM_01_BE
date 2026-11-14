@@ -3,6 +3,7 @@ package com.som.account.controller;
 import com.som.account.dto.DeletionConfirmRequest;
 import com.som.account.dto.DeletionStatusResponse;
 import com.som.account.dto.MeResponse;
+import com.som.account.dto.NicknameRequest;
 import com.som.account.service.AccountService;
 import com.som.account.service.DeletionScope;
 import com.som.account.service.DeletionService;
@@ -18,6 +19,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.logout.SecurityContextLogoutHandler;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -53,7 +55,12 @@ public class AccountController {
         });
     }
 
-    /** 기록 삭제(계정·동의·연결·알림 설정은 남는다). 바디 {"confirm": true} 필수. */
+    @PatchMapping
+    MeResponse updateNickname(@CurrentUserId Long userId,
+                              @RequestBody NicknameRequest body) {
+        return accountService.updateNickname(userId, body.nickname());
+    }
+
     @DeleteMapping("/data")
     DeletionStatusResponse deleteData(@CurrentUserId Long userId, @RequestBody DeletionConfirmRequest body) {
         checkDeletion(userId, body);
