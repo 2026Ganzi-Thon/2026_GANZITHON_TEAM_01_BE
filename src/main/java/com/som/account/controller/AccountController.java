@@ -61,6 +61,7 @@ public class AccountController {
         return accountService.updateNickname(userId, body.nickname());
     }
 
+    /** 기록 삭제(계정·동의·연결·알림 설정은 남는다). 바디 {"confirm": true} 필수. */
     @DeleteMapping("/data")
     DeletionStatusResponse deleteData(@CurrentUserId Long userId, @RequestBody DeletionConfirmRequest body) {
         checkDeletion(userId, body);

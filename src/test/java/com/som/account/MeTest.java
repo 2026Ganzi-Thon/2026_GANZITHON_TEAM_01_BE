@@ -110,7 +110,7 @@ class MeTest {
         assertThat(body.has("subjectKey")).isFalse();
         assertThat(body.has("passwordHash")).isFalse();
         assertThat(body.has("authProvider")).isFalse();
-        assertThat(body.size()).isEqualTo(3);
+        assertThat(body.size()).isEqualTo(4); // loginId, requiredConsentsCompleted, createdAt, nickname
     }
 
     @Test
@@ -148,5 +148,76 @@ class MeTest {
         assertThat(objectMapper.readTree(result.getResponse().getContentAsString()).path("error").path("code").asText())
                 .isEqualTo("UNAUTHORIZED");
         assertThat(session.isInvalid()).isTrue();
+    }
+
+    private MvcResult patchNickname(MockHttpSession session, String nickname) throws Exception {
+        String json = nickname == null ? "{}" : objectMapper.writeValueAsString(Map.of("nickname", nickname));
+        var request = patch(ME).with(csrf()).contentType(MediaType.APPLICATION_JSON).content(json);
+        if (session != null) request.session(session);
+        return mockMvc.perform(request).andReturn();
+    }
+
+    @Test
+    void 가입_직후_닉네임은_null() throws Exception {
+        JsonNode body = getMe(signup("menick01"));
+
+        assertThat(body.has("nickname")).isTrue();
+        assertThat(body.path("nickname").isNull()).isTrue();
+    }
+
+    @Test
+    void 닉네임을_저장하면_앞뒤_공백을_지우고_조회에도_반영된다() throws Exception {
+        MockHttpSession session = signup("menick02");
+
+        MvcResult result = patchNickname(session, "  소미친구  ");
+
+        assertThat(result.getResponse().getStatus()).isEqualTo(200);
+        JsonNode body = objectMapper.readTree(result.getResponse().getContentAsString());
+        assertThat(body.path("nickname").asText()).isEqualTo("소미친구");
+        assertThat(body.path("loginId").asText()).isEqualTo("menick02");
+        assertThat(getMe(session).path("nickname").asText()).isEqualTo("소미친구");
+    }
+
+    @Test
+    void 닉네임은_30자까지_허용된다() throws Exception {
+        MockHttpSession session = signup("menick03");
+
+        MvcResult result = patchNickname(session, "가".repeat(30));
+
+        assertThat(result.getResponse().getStatus()).isEqualTo(200);
+        assertThat(getMe(session).path("nickname").asText()).hasSize(30);
+    }
+
+    @Test
+    void 빈_값_공백만_31자_줄바꿈_누락이면_400이고_기존_닉네임은_유지된다() throws Exception {
+        MockHttpSession session = signup("menick04");
+        assertThat(patchNickname(session, "솜").getResponse().getStatus()).isEqualTo(200);
+
+        for (String bad : new String[] {"", "   ", "가".repeat(31), "첫줄\n둘째줄", "탭\t문자", null}) {
+            MvcResult result = patchNickname(session, bad);
+            assertThat(result.getResponse().getStatus()).as("nickname=%s", bad).isEqualTo(400);
+            assertThat(objectMapper.readTree(result.getResponse().getContentAsString())
+                    .path("error").path("code").asText()).isEqualTo("VALIDATION_ERROR");
+        }
+        assertThat(getMe(session).path("nickname").asText()).isEqualTo("솜");
+    }
+
+    @Test
+    void 닉네임_변경은_미인증이면_401() throws Exception {
+        assertThat(patchNickname(null, "솜").getResponse().getStatus()).isEqualTo(401);
+    }
+
+    @Test
+    void 닉네임_변경은_세션_사용자에게만_적용된다() throws Exception {
+        MockHttpSession sessionA = signup("menicka1");
+        MockHttpSession sessionB = signup("menickb1");
+        Long idB = users.findByLoginId("menickb1").orElseThrow().getId();
+        String json = objectMapper.writeValueAsString(Map.of("nickname", "바꿔치기", "userId", idB));
+
+        MvcResult result = mockMvc.perform(patch(ME).param("userId", String.valueOf(idB)).session(sessionA)
+                .with(csrf()).contentType(MediaType.APPLICATION_JSON).content(json)).andReturn();
+
+        assertThat(result.getResponse().getStatus()).isIn(200, 400);
+        assertThat(getMe(sessionB).path("nickname").isNull()).isTrue();
     }
 }

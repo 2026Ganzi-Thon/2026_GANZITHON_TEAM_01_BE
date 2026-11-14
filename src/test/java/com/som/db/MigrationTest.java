@@ -47,7 +47,7 @@ class MigrationTest {
 
         assertThat(columns).containsOnlyKeys(
                 "id", "login_id", "password_hash", "subject_key",
-                "auth_provider", "created_at", "last_login_at");
+                "auth_provider", "created_at", "last_login_at", "nickname");
 
         assertColumn(columns, "id", "bigint", "NO", null);
         assertColumn(columns, "login_id", "character varying", "NO", 64);
@@ -56,6 +56,7 @@ class MigrationTest {
         assertColumn(columns, "auth_provider", "character varying", "NO", 20);
         assertColumn(columns, "created_at", "timestamp with time zone", "NO", null);
         assertColumn(columns, "last_login_at", "timestamp with time zone", "YES", null);
+        assertColumn(columns, "nickname", "character varying", "YES", 30);
     }
 
     @Test
