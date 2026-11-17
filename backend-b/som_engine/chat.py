@@ -33,7 +33,8 @@ FINALITY_SIGNALS = (
     "오늘이마지막", "오늘밤이마지막", "마지막이었으면", "마지막인사", "마지막날", "다끝내고싶",
 )
 DISTRESS_SIGNALS = ("너무힘들", "견디기힘들", "버티기힘들", "감당이안돼", "절망적")
-OLLAMA_READ_TIMEOUT_SECONDS = 12.0
+MODEL_READ_TIMEOUT_SECONDS = 12.0
+OPENAI_RESPONSES_URL = "https://api.openai.com/v1/responses"
 SYSTEM_PROMPT = (
     "너는 마음 돌봄 앱의 소미야. 마지막 사용자에게 자연스러운 한국어 존댓말 두 문장 이내로 답해. "
     "인사말 없이 바로 시작해. 최근 대화가 있으면 실제로 언급된 상황을 이어받아 구체적으로 공감하고, "
@@ -78,11 +79,7 @@ def is_immediate_risk(text: str) -> bool:
     )
 
 
-def local_model_reply(request: ChatRequest, text: str) -> ModelReply | None:
-    model = os.getenv("SOM_OLLAMA_MODEL", "").strip()
-    if not model:
-        return None
-
+def model_context(request: ChatRequest, text: str) -> list[dict[str, str]]:
     support = request.todayCheckin.supportNeed if request.todayCheckin else None
     system_prompt = SYSTEM_PROMPT
     if support:
@@ -97,9 +94,16 @@ def local_model_reply(request: ChatRequest, text: str) -> ModelReply | None:
         history.pop()
     context.extend(history)
     context.append(current)
+    return context
+
+
+def local_model_reply(context: list[dict[str, str]]) -> ModelReply | None:
+    model = os.getenv("SOM_OLLAMA_MODEL", "").strip()
+    if not model:
+        return None
 
     try:
-        timeout = httpx.Timeout(OLLAMA_READ_TIMEOUT_SECONDS, connect=1.0)
+        timeout = httpx.Timeout(MODEL_READ_TIMEOUT_SECONDS, connect=1.0)
         with httpx.Client(timeout=timeout, trust_env=False) as client:
             response = client.post("http://127.0.0.1:11434/api/chat", json={
                 "model": model,
@@ -114,6 +118,51 @@ def local_model_reply(request: ChatRequest, text: str) -> ModelReply | None:
         return ModelReply.model_validate_json(response.json()["message"]["content"])
     except (httpx.HTTPError, ValueError, KeyError, TypeError):
         return None
+
+
+def openai_model_reply(text: str) -> ModelReply | None:
+    api_key = os.getenv("OPENAI_API_KEY", "").strip()
+    model = os.getenv("SOM_OPENAI_MODEL", "gpt-4.1-mini").strip()
+    if not api_key or not model:
+        return None
+
+    schema = ModelReply.model_json_schema()
+    schema["properties"]["text"].pop("maxLength", None)  # Python still validates reply length.
+    try:
+        timeout = httpx.Timeout(MODEL_READ_TIMEOUT_SECONDS, connect=2.0)
+        with httpx.Client(timeout=timeout, trust_env=False) as client:
+            response = client.post(OPENAI_RESPONSES_URL, headers={"Authorization": f"Bearer {api_key}"}, json={
+                "model": model,
+                "instructions": SYSTEM_PROMPT,
+                "input": text,
+                "store": False,
+                "max_output_tokens": 300,
+                "text": {"format": {"type": "json_schema", "name": "somi_reply", "strict": True, "schema": schema}},
+            })
+        response.raise_for_status()
+        result = response.json()
+        if result.get("status") != "completed":
+            return None
+        for item in result.get("output", []):
+            if item.get("type") != "message" or item.get("role") != "assistant":
+                continue
+            for part in item.get("content", []):
+                if part.get("type") == "refusal":
+                    return None
+                if part.get("type") == "output_text":
+                    return ModelReply.model_validate_json(part["text"])
+    except (httpx.HTTPError, ValueError, KeyError, TypeError, AttributeError):
+        return None
+    return None
+
+
+def model_reply(request: ChatRequest, text: str) -> ModelReply | None:
+    provider = os.getenv("SOM_CHAT_MODEL_PROVIDER", "ollama").strip().lower()
+    if provider == "openai":
+        return openai_model_reply(text)
+    if provider == "ollama":
+        return local_model_reply(model_context(request, text))
+    return None
 
 
 def usable_model_text(result: ModelReply | None, user_text: str) -> str | None:
@@ -173,7 +222,7 @@ def reply(request: ChatRequest) -> ChatResult:
     if is_immediate_risk(text):
         return ChatResult(text=CRISIS_TEXT, riskLevel="HIGH")
 
-    generated = local_model_reply(request, text) if text else None
+    generated = model_reply(request, text) if text else None
     intent = generated.intent if generated else None
     if intent == "CRISIS":
         return ChatResult(text=CRISIS_TEXT, riskLevel="HIGH")
