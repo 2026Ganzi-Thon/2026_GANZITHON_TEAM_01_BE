@@ -52,6 +52,18 @@ public class SignalService {
 
     @Transactional
     public SignalIngestResponse ingest(Long userId, SignalIngestRequest request) {
+        return store(userId, request, ConnectionProvider.DEMO);
+    }
+
+    @Transactional
+    public SignalIngestResponse ingestMobile(Long userId, SignalIngestRequest request) {
+        if (request.source() != DataSource.STEPS) {
+            throw invalid("source: 지원하지 않는 모바일 동기화 소스입니다");
+        }
+        return store(userId, request, ConnectionProvider.MOBILE);
+    }
+
+    private SignalIngestResponse store(Long userId, SignalIngestRequest request, ConnectionProvider provider) {
         signals.lockSource(userId, request.source()); // 철회와 직렬화: 동의 확인 전에 잡는다
         if (!consentChecker.isConsented(userId, request.source())) {
             throw new ApiException(ErrorCode.SOURCE_NOT_CONSENTED);
@@ -62,7 +74,7 @@ public class SignalService {
         OffsetDateTime now = dates.now();
         for (Entry entry : request.entries()) {
             signals.upsert(userId, request.localDate(), request.source(), entry.metric(), entry.value(),
-                    entry.valueAt(), entry.hourBucket(), ConnectionProvider.DEMO, now);
+                    entry.valueAt(), entry.hourBucket(), provider, now);
         }
         int stored = request.entries().size();
         if (sleep != null && sleep.complete()) {

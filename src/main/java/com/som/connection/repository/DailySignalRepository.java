@@ -31,6 +31,7 @@ public class DailySignalRepository {
             ON CONFLICT ON CONSTRAINT uk_daily_signals_key DO UPDATE
             SET value = EXCLUDED.value, value_at = EXCLUDED.value_at, unit = EXCLUDED.unit,
                 provider = EXCLUDED.provider, collected_at = EXCLUDED.collected_at
+            WHERE daily_signals.provider <> 'MOBILE' OR EXCLUDED.provider = 'MOBILE'
             """;
 
     private final JdbcTemplate jdbc;
