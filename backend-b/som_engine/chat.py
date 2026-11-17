@@ -35,6 +35,7 @@ FINALITY_SIGNALS = (
 DISTRESS_SIGNALS = ("너무힘들", "견디기힘들", "버티기힘들", "감당이안돼", "절망적")
 MODEL_READ_TIMEOUT_SECONDS = 12.0
 OPENAI_RESPONSES_URL = "https://api.openai.com/v1/responses"
+GEMINI_MODELS_URL = "https://generativelanguage.googleapis.com/v1beta/models"
 SYSTEM_PROMPT = (
     "너는 마음 돌봄 앱의 소미야. 마지막 사용자에게 자연스러운 한국어 존댓말 두 문장 이내로 답해. "
     "인사말 없이 바로 시작해. 최근 대화가 있으면 실제로 언급된 상황을 이어받아 구체적으로 공감하고, "
@@ -120,14 +121,18 @@ def local_model_reply(context: list[dict[str, str]]) -> ModelReply | None:
         return None
 
 
+def external_reply_schema() -> dict:
+    schema = ModelReply.model_json_schema()
+    schema["properties"]["text"].pop("maxLength", None)  # Python still validates reply length.
+    return schema
+
+
 def openai_model_reply(text: str) -> ModelReply | None:
     api_key = os.getenv("OPENAI_API_KEY", "").strip()
     model = os.getenv("SOM_OPENAI_MODEL", "gpt-4.1-mini").strip()
     if not api_key or not model:
         return None
 
-    schema = ModelReply.model_json_schema()
-    schema["properties"]["text"].pop("maxLength", None)  # Python still validates reply length.
     try:
         timeout = httpx.Timeout(MODEL_READ_TIMEOUT_SECONDS, connect=2.0)
         with httpx.Client(timeout=timeout, trust_env=False) as client:
@@ -137,7 +142,7 @@ def openai_model_reply(text: str) -> ModelReply | None:
                 "input": text,
                 "store": False,
                 "max_output_tokens": 300,
-                "text": {"format": {"type": "json_schema", "name": "somi_reply", "strict": True, "schema": schema}},
+                "text": {"format": {"type": "json_schema", "name": "somi_reply", "strict": True, "schema": external_reply_schema()}},
             })
         response.raise_for_status()
         result = response.json()
@@ -156,10 +161,47 @@ def openai_model_reply(text: str) -> ModelReply | None:
     return None
 
 
+def gemini_model_reply(text: str) -> ModelReply | None:
+    api_key = os.getenv("GEMINI_API_KEY", "").strip()
+    model = os.getenv("SOM_GEMINI_MODEL", "gemini-3.5-flash-lite").strip()
+    if not api_key or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]*", model):
+        return None
+
+    try:
+        timeout = httpx.Timeout(MODEL_READ_TIMEOUT_SECONDS, connect=2.0)
+        with httpx.Client(timeout=timeout, trust_env=False) as client:
+            response = client.post(
+                f"{GEMINI_MODELS_URL}/{model}:generateContent",
+                headers={"x-goog-api-key": api_key},
+                json={
+                    "systemInstruction": {"parts": [{"text": SYSTEM_PROMPT}]},
+                    "contents": [{"role": "user", "parts": [{"text": text}]}],
+                    "generationConfig": {
+                        "maxOutputTokens": 512,
+                        "responseMimeType": "application/json",
+                        "responseJsonSchema": external_reply_schema(),
+                    },
+                },
+            )
+        response.raise_for_status()
+        for candidate in response.json().get("candidates", []):
+            if candidate.get("finishReason") != "STOP":
+                continue
+            parts = candidate.get("content", {}).get("parts", [])
+            output = "".join(part.get("text", "") for part in parts if not part.get("thought"))
+            if output:
+                return ModelReply.model_validate_json(output)
+    except (httpx.HTTPError, ValueError, KeyError, TypeError, AttributeError):
+        return None
+    return None
+
+
 def model_reply(request: ChatRequest, text: str) -> ModelReply | None:
     provider = os.getenv("SOM_CHAT_MODEL_PROVIDER", "ollama").strip().lower()
     if provider == "openai":
         return openai_model_reply(text)
+    if provider == "gemini":
+        return gemini_model_reply(text)
     if provider == "ollama":
         return local_model_reply(model_context(request, text))
     return None
