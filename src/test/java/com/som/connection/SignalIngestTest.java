@@ -5,6 +5,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -142,6 +143,45 @@ class SignalIngestTest {
     private void assertError(MvcResult result, int status, String code) throws Exception {
         assertThat(result.getResponse().getStatus()).as(result.getResponse().getContentAsString()).isEqualTo(status);
         assertThat(json(result).path("error").path("code").asText()).isEqualTo(code);
+    }
+
+    @Test
+    void mobileStepsRequireConsentAndReplaceDailyTotal() throws Exception {
+        var session = signupWithRequiredConsents("sgmobilestep");
+        String path = "/api/v1/mobile-sync/steps";
+        String first = """
+                {"localDate":"2026-11-11","total":100}
+                """;
+        assertError(mobileSync(session, path, first), 403, "SOURCE_NOT_CONSENTED");
+        connect(session, "STEPS");
+        assertThat(mobileSync(session, path, first).getResponse().getStatus()).isEqualTo(200);
+        assertThat(mobileSync(session, path, first.replace("100", "120")).getResponse().getStatus()).isEqualTo(200);
+
+        var step = row(userId("sgmobilestep"), "STEPS_DAILY");
+        assertThat(step.get("provider")).isEqualTo("MOBILE");
+        assertThat((BigDecimal) step.get("value")).isEqualByComparingTo("120");
+    }
+
+    @Test
+    void mobileCalendarResyncRemovesNoLongerReportedGap() throws Exception {
+        var session = signupWithRequiredConsents("sgmobilecal");
+        connect(session, "CALENDAR_WORK");
+        String path = "/api/v1/mobile-sync/calendar/work";
+        var first = mobileSync(session, path, """
+                {"localDate":"2026-11-11","eventCount":2,"busyMinutes":120,"averageGapMinutes":60}
+                """);
+        assertThat(first.getResponse().getStatus()).isEqualTo(200);
+        var second = mobileSync(session, path, """
+                {"localDate":"2026-11-11","eventCount":1,"busyMinutes":60}
+                """);
+        assertThat(second.getResponse().getStatus()).isEqualTo(200);
+        assertThat(rows(userId("sgmobilecal"))).extracting(row -> row.get("metric_key"))
+                .containsExactly("CALENDAR_BUSY_MINUTES", "CALENDAR_EVENT_COUNT");
+    }
+
+    private MvcResult mobileSync(MockHttpSession session, String path, String json) throws Exception {
+        return mockMvc.perform(put(path).session(session).with(csrf())
+                .contentType(MediaType.APPLICATION_JSON).content(json)).andReturn();
     }
 
     @Test

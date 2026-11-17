@@ -13,6 +13,7 @@ import com.som.connection.dto.SignalIngestResponse;
 import com.som.connection.repository.DailySignalRepository;
 import java.math.BigDecimal;
 import java.time.Duration;
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.HashSet;
 import java.util.List;
@@ -57,10 +58,17 @@ public class SignalService {
 
     @Transactional
     public SignalIngestResponse ingestMobile(Long userId, SignalIngestRequest request) {
-        if (request.source() != DataSource.STEPS) {
+        if (request.source() != DataSource.STEPS && !isCalendar(request.source())) {
             throw invalid("source: 지원하지 않는 모바일 동기화 소스입니다");
         }
         return store(userId, request, ConnectionProvider.MOBILE);
+    }
+
+    @Transactional
+    public SignalIngestResponse ingestGoogleCalendar(Long userId, LocalDate date, int busyMinutes) {
+        var entry = new Entry(Metric.CALENDAR_BUSY_MINUTES, BigDecimal.valueOf(busyMinutes), null, null);
+        var request = new SignalIngestRequest(DataSource.CALENDAR_PERSONAL, date, List.of(entry));
+        return store(userId, request, ConnectionProvider.GOOGLE_CALENDAR);
     }
 
     private SignalIngestResponse store(Long userId, SignalIngestRequest request, ConnectionProvider provider) {
@@ -69,6 +77,9 @@ public class SignalService {
             throw new ApiException(ErrorCode.SOURCE_NOT_CONSENTED);
         }
         validate(request);
+        if (provider != ConnectionProvider.DEMO && isCalendar(request.source())) {
+            signals.deleteByUserIdAndDateAndSource(userId, request.localDate(), request.source());
+        }
         SleepTimes sleep = request.source() == DataSource.SLEEP ? sleepTimes(userId, request) : null;
 
         OffsetDateTime now = dates.now();
@@ -85,6 +96,10 @@ public class SignalService {
         }
         events.publishEvent(new SignalsIngestedEvent(userId, request.localDate())); // 커밋 후 스냅샷 재계산(state)
         return new SignalIngestResponse(request.source(), request.localDate(), stored);
+    }
+
+    private static boolean isCalendar(DataSource source) {
+        return source == DataSource.CALENDAR_PERSONAL || source == DataSource.CALENDAR_WORK;
     }
 
     private void validate(SignalIngestRequest request) {

@@ -126,6 +126,11 @@ som:
     fallback-text: "지금은 잠시 답변이 어려워요. 호흡 루틴을 먼저 해볼까요?"   # engine 실패 시 고정 문구(A_SPEC §8)
     page-size: 30
     max-page-size: 100
+  google-calendar:
+    enabled: ${SOM_GOOGLE_CALENDAR_ENABLED:false}
+    client-id: ${SOM_GOOGLE_CALENDAR_CLIENT_ID:}
+    client-secret: ${SOM_GOOGLE_CALENDAR_CLIENT_SECRET:}
+    redirect-uri: ${SOM_GOOGLE_CALENDAR_REDIRECT_URI:}
   notification:
     default-enabled: false       # 설정 행이 없을 때 기본값(발송은 P1, A_SPEC §10)
   insights:

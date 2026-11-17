@@ -10,11 +10,14 @@ import com.som.connection.dto.SignalIngestRequest;
 import com.som.connection.dto.SignalIngestResponse;
 import com.som.connection.service.SignalService;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PositiveOrZero;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -41,6 +44,19 @@ public class MobileSyncController {
                 List.of(entry(Metric.STEPS_DAILY, body.total()))));
     }
 
+    /** 일정 원문 대신 서비스 날짜별 집계값만 수신한다. */
+    @PutMapping("/calendar/{calendar}")
+    SignalIngestResponse calendar(@CurrentUserId Long userId, @PathVariable CalendarType calendar,
+                                  @Valid @RequestBody CalendarDay body) {
+        List<SignalIngestRequest.Entry> entries = new ArrayList<>(List.of(
+                entry(Metric.CALENDAR_EVENT_COUNT, body.eventCount()),
+                entry(Metric.CALENDAR_BUSY_MINUTES, body.busyMinutes())));
+        if (body.averageGapMinutes() != null) {
+            entries.add(entry(Metric.CALENDAR_AVERAGE_GAP_MINUTES, body.averageGapMinutes()));
+        }
+        return sync(userId, new SignalIngestRequest(calendar.source, body.localDate(), entries));
+    }
+
     private SignalIngestResponse sync(Long userId, SignalIngestRequest request) {
         RateLimiter.Decision decision = limiter.tryConsume("signals:user:" + userId, limits.perUser());
         if (!decision.allowed()) {
@@ -52,6 +68,20 @@ public class MobileSyncController {
     private static SignalIngestRequest.Entry entry(Metric metric, int total) {
         return new SignalIngestRequest.Entry(metric, BigDecimal.valueOf(total), null, null);
     }
+
+    enum CalendarType {
+        personal(DataSource.CALENDAR_PERSONAL), work(DataSource.CALENDAR_WORK);
+
+        private final DataSource source;
+
+        CalendarType(DataSource source) {
+            this.source = source;
+        }
+    }
+
+    record CalendarDay(@NotNull LocalDate localDate, @NotNull @PositiveOrZero Integer eventCount,
+                       @NotNull @PositiveOrZero @Max(1440) Integer busyMinutes,
+                       @PositiveOrZero @Max(1440) Integer averageGapMinutes) {}
 
     record Steps(@NotNull LocalDate localDate, @NotNull @PositiveOrZero Integer total) {}
 }

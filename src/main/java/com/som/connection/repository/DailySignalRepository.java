@@ -31,7 +31,7 @@ public class DailySignalRepository {
             ON CONFLICT ON CONSTRAINT uk_daily_signals_key DO UPDATE
             SET value = EXCLUDED.value, value_at = EXCLUDED.value_at, unit = EXCLUDED.unit,
                 provider = EXCLUDED.provider, collected_at = EXCLUDED.collected_at
-            WHERE daily_signals.provider <> 'MOBILE' OR EXCLUDED.provider = 'MOBILE'
+            WHERE daily_signals.provider = 'DEMO' OR EXCLUDED.provider <> 'DEMO'
             """;
 
     private final JdbcTemplate jdbc;
@@ -108,6 +108,11 @@ public class DailySignalRepository {
     public void lockSource(Long userId, DataSource source) {
         jdbc.queryForList("SELECT pg_advisory_xact_lock(hashtextextended(?, 0))",
                 "daily_signals:" + userId + ":" + source.name());
+    }
+
+    public void deleteByUserIdAndDateAndSource(Long userId, LocalDate localDate, DataSource source) {
+        jdbc.update("DELETE FROM daily_signals WHERE user_id = ? AND local_date = ? AND source = ?",
+                userId, localDate, source.name());
     }
 
     public int deleteByUserIdAndSource(Long userId, DataSource source) {
