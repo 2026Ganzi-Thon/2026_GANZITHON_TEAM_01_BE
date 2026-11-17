@@ -126,6 +126,12 @@ som:
     fallback-text: "지금은 잠시 답변이 어려워요. 호흡 루틴을 먼저 해볼까요?"   # engine 실패 시 고정 문구(A_SPEC §8)
     page-size: 30
     max-page-size: 100
+  push:
+    enabled: ${SOM_WEB_PUSH_ENABLED:false}
+    public-key: ${SOM_WEB_PUSH_PUBLIC_KEY:}
+    private-key: ${SOM_WEB_PUSH_PRIVATE_KEY:}
+    subject: ${SOM_WEB_PUSH_SUBJECT:}
+
   google-calendar:
     enabled: ${SOM_GOOGLE_CALENDAR_ENABLED:false}
     client-id: ${SOM_GOOGLE_CALENDAR_CLIENT_ID:}

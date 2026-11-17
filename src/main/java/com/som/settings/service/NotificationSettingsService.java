@@ -21,7 +21,7 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/** 알림 설정 저장·조회(A_SPEC §10). 발송은 P1이라 만들지 않는다. */
+/** 알림 설정 저장·조회(A_SPEC §10). */
 @Service
 @EnableConfigurationProperties(NotificationProperties.class)
 public class NotificationSettingsService {
