@@ -52,6 +52,15 @@ public class DailySignalRepository {
                 new SqlParameterValue(Types.TIMESTAMP_WITH_TIMEZONE, collectedAt));
     }
 
+    public Integer findManualTotal(Long userId, LocalDate date, DataSource source) {
+        return jdbc.query("""
+                SELECT value FROM daily_signals
+                WHERE user_id = ? AND local_date = ? AND source = ? AND provider = 'MANUAL'
+                  AND metric_key IN ('STEPS_DAILY', 'SLEEP_MINUTES')
+                """, (row, index) -> row.getBigDecimal(1).intValueExact(), userId, date, source.name())
+                .stream().findFirst().orElse(null);
+    }
+
     /** 시간대가 없는 시각 지표(SLEEP_ONSET·SLEEP_WAKE)의 저장값. */
     public Optional<OffsetDateTime> findValueAt(Long userId, LocalDate localDate, DataSource source, Metric metric) {
         return jdbc.query("""

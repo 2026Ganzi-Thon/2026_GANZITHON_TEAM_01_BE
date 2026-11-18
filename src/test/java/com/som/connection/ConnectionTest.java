@@ -160,7 +160,7 @@ class ConnectionTest {
         }
         JsonNode sleep = item(body, "SLEEP");
         assertThat(sleep.path("sensitive").asBoolean()).isTrue();
-        assertThat(objectMapper.convertValue(sleep.path("items"), List.class)).containsExactly("잠든 시각", "깬 시각");
+        assertThat(objectMapper.convertValue(sleep.path("items"), List.class)).containsExactly("잠든 시각", "깬 시각", "직접 입력한 총 수면 시간");
         assertThat(sleep.path("purpose").asText()).isEqualTo("평소와 달라졌는지 살피는 데만 써요");
         assertThat(item(body, "STEPS").path("sensitive").asBoolean()).isFalse();
         assertThat(checker.consentedSources(userId("cnnew01"))).isEmpty();
@@ -187,7 +187,7 @@ class ConnectionTest {
         assertThat(row.get("source")).isEqualTo("SLEEP");
         assertThat(row.get("is_granted")).isEqualTo(true);
         assertThat(row.get("policy_version")).isEqualTo("v1");
-        assertThat(objectMapper.readValue((String) row.get("items"), List.class)).containsExactly("잠든 시각", "깬 시각");
+        assertThat(objectMapper.readValue((String) row.get("items"), List.class)).containsExactly("잠든 시각", "깬 시각", "직접 입력한 총 수면 시간");
         assertThat(row.get("purpose")).isEqualTo("평소와 달라졌는지 살피는 데만 써요");
         assertThat(row.get("retention")).isEqualTo("TBD");
         assertThat(((Timestamp) row.get("changed_at")).toInstant()).isEqualTo(FIXED);

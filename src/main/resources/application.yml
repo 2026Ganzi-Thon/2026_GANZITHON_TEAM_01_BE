@@ -60,7 +60,7 @@ som:
       # TODO(DECISION): 연동 동의 정책 버전 미확정. 아래 v1은 [제안] 값
       SLEEP:
         policy-version: "v1"
-        items: ["잠든 시각", "깬 시각"]
+        items: ["잠든 시각", "깬 시각", "직접 입력한 총 수면 시간"]
         purpose: "평소와 달라졌는지 살피는 데만 써요"
         retention: "TBD"          # TODO(DECISION): 보관 기간 미정(A_SPEC §5). 탈퇴 시 즉시 삭제는 확정
         sensitive: true           # 건강 정보 · 별도 동의 (화면 확정)

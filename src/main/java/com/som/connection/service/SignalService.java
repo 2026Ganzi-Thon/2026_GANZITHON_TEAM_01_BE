@@ -71,16 +71,33 @@ public class SignalService {
         return store(userId, request, ConnectionProvider.GOOGLE_CALENDAR);
     }
 
+    @Transactional
+    public SignalIngestResponse recordManual(Long userId, LocalDate date, DataSource source, int total) {
+        Metric metric = switch (source) {
+            case STEPS -> Metric.STEPS_DAILY;
+            case SLEEP -> Metric.SLEEP_MINUTES;
+            default -> throw invalid("직접 입력을 지원하지 않는 항목입니다");
+        };
+        var entry = new Entry(metric, BigDecimal.valueOf(total), null, null);
+        return store(userId, new SignalIngestRequest(source, date, List.of(entry)), ConnectionProvider.MANUAL);
+    }
+
+    @Transactional(readOnly = true)
+    public Integer manualTotal(Long userId, LocalDate date, DataSource source) {
+        return consentChecker.isConsented(userId, source) ? signals.findManualTotal(userId, date, source) : null;
+    }
+
     private SignalIngestResponse store(Long userId, SignalIngestRequest request, ConnectionProvider provider) {
         signals.lockSource(userId, request.source()); // 철회와 직렬화: 동의 확인 전에 잡는다
         if (!consentChecker.isConsented(userId, request.source())) {
             throw new ApiException(ErrorCode.SOURCE_NOT_CONSENTED);
         }
-        validate(request);
+        validate(request, provider);
         if (provider != ConnectionProvider.DEMO && isCalendar(request.source())) {
             signals.deleteByUserIdAndDateAndSource(userId, request.localDate(), request.source());
         }
-        SleepTimes sleep = request.source() == DataSource.SLEEP ? sleepTimes(userId, request) : null;
+        SleepTimes sleep = request.source() == DataSource.SLEEP && provider != ConnectionProvider.MANUAL
+                ? sleepTimes(userId, request) : null;
 
         OffsetDateTime now = dates.now();
         for (Entry entry : request.entries()) {
@@ -102,7 +119,7 @@ public class SignalService {
         return source == DataSource.CALENDAR_PERSONAL || source == DataSource.CALENDAR_WORK;
     }
 
-    private void validate(SignalIngestRequest request) {
+    private void validate(SignalIngestRequest request, ConnectionProvider provider) {
         if (request.localDate().isAfter(dates.today())) {
             throw invalid("localDate: 미래 날짜는 보낼 수 없습니다");
         }
@@ -115,7 +132,7 @@ public class SignalService {
             if (!metric.belongsTo(request.source())) {
                 throw invalid("entries.metric: source에 속하지 않는 지표입니다");
             }
-            if (!metric.clientWritable()) {
+            if (!metric.clientWritable() && !(provider == ConnectionProvider.MANUAL && metric == Metric.SLEEP_MINUTES)) {
                 throw invalid("entries.metric: 서버가 계산하는 지표입니다");
             }
             boolean time = metric.valueKind() == Metric.ValueKind.TIME;

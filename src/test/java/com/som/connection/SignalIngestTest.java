@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 
@@ -143,6 +144,31 @@ class SignalIngestTest {
     private void assertError(MvcResult result, int status, String code) throws Exception {
         assertThat(result.getResponse().getStatus()).as(result.getResponse().getContentAsString()).isEqualTo(status);
         assertThat(json(result).path("error").path("code").asText()).isEqualTo(code);
+    }
+
+    @Test
+    void manualRecordsRequireConsentAndArePrivateToTheSession() throws Exception {
+        var session = signupWithRequiredConsents("sgmanual");
+        var other = signupWithRequiredConsents("sgmanualtwo");
+        String path = "/api/v1/me/manual-signals/" + TODAY;
+        assertError(mobileSync(session, path + "/steps", "{\"total\":0}"), 403, "SOURCE_NOT_CONSENTED");
+        connect(session, "STEPS");
+        connect(session, "SLEEP");
+        assertThat(mobileSync(session, path + "/steps", "{\"total\":0}").getResponse().getStatus()).isEqualTo(200);
+        assertThat(mobileSync(session, path + "/sleep", "{\"total\":400}").getResponse().getStatus()).isEqualTo(200);
+        assertThat(mobileSync(session, path + "/sleep", "{\"total\":425}").getResponse().getStatus()).isEqualTo(200);
+        assertError(mobileSync(session, path + "/sleep", "{\"total\":1441}"), 400, "VALIDATION_ERROR");
+
+        var own = json(mockMvc.perform(get(path).session(session)).andReturn());
+        assertThat(own.path("steps").asInt(-1)).isZero();
+        assertThat(own.path("sleepMinutes").asInt()).isEqualTo(425);
+        var separate = json(mockMvc.perform(get(path).session(other)).andReturn());
+        assertThat(separate.path("steps").isNull()).isTrue();
+        assertThat(separate.path("sleepMinutes").isNull()).isTrue();
+        assertThat(rows(userId("sgmanual"))).extracting(r -> r.get("provider"))
+                .containsExactly("MANUAL", "MANUAL");
+        revoke(session, "SLEEP");
+        assertThat(json(mockMvc.perform(get(path).session(session)).andReturn()).path("sleepMinutes").isNull()).isTrue();
     }
 
     @Test
