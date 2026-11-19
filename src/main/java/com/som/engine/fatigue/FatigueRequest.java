@@ -1,5 +1,6 @@
 package com.som.engine.fatigue;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
@@ -12,7 +13,13 @@ import java.util.Set;
  * @param checkin 그날 체크인이 없으면 null
  */
 public record FatigueRequest(String subjectKey, LocalDate localDate, ZoneId timezone, CheckinInput checkin,
-                             List<SignalInput> signals, Set<String> consentedSources, List<SignalDay> recentSignals) {
+                             List<SignalInput> signals, Set<String> consentedSources, List<SignalDay> recentSignals,
+                             @JsonInclude(JsonInclude.Include.NON_DEFAULT) int completedRoutines) {
+    public FatigueRequest(String subjectKey, LocalDate localDate, ZoneId timezone, CheckinInput checkin,
+                          List<SignalInput> signals, Set<String> consentedSources, List<SignalDay> recentSignals) {
+        this(subjectKey, localDate, timezone, checkin, signals, consentedSources, recentSignals, 0);
+    }
+
     public FatigueRequest(String subjectKey, LocalDate localDate, ZoneId timezone, CheckinInput checkin,
                           List<SignalInput> signals, Set<String> consentedSources) {
         this(subjectKey, localDate, timezone, checkin, signals, consentedSources, List.of());

@@ -79,7 +79,10 @@ public class MockFatigueEngine implements FatigueEngine {
         }
         score = Math.min(score, 100);
 
-        int level = levelOf(score);
+        int level = Math.max(1, levelOf(score) - request.completedRoutines());
+        if (level < levelOf(score)) {
+            score = Math.min(score, props.levelMinScores().get(level - 1) - 1);
+        }
         MockEngineProperties.LevelText text = props.levels().get(level - 1);
         return new FatigueResult(score, level, props.woolKg().get(level - 1), FatigueStatus.CALCULATED,
                 text.statusText(), text.subText(), "sheep_level_" + level, new ArrayList<>(used),

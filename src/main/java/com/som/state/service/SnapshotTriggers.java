@@ -1,6 +1,7 @@
 package com.som.state.service;
 
 import com.som.checkin.service.CheckinSubmittedEvent;
+import com.som.routine.service.RoutineCompletedEvent;
 import com.som.common.time.ServiceDates;
 import com.som.connection.service.SignalsIngestedEvent;
 import com.som.connection.service.SourceRevokedEvent;
@@ -45,6 +46,11 @@ public class SnapshotTriggers {
                 log.warn("snapshot recalculation after signal history failed with {}", e.getClass().getSimpleName());
             }
         }
+    }
+
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void onRoutineCompleted(RoutineCompletedEvent event) {
+        recalculate("routine", event.userId(), event.localDate());
     }
 
     /** 철회된 소스는 SnapshotService가 이미 제외한다. 오늘 상태에서 바로 빠지도록 오늘만 다시 계산한다. */

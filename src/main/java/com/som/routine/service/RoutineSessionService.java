@@ -25,12 +25,13 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.stereotype.Service;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
  * 루틴 실행(시작·완료·건너뜀)과 루틴-1 화면. 사용자·루틴·날짜당 1행이라 중복 완료해도 기록이 늘지 않는다.
  * 전이: 없음/STARTED/SKIPPED → 어느 상태로든, COMPLETED는 최종(다시 complete는 같은 응답, start·skip은 409).
- * 루틴 완료는 피로 점수·단계를 바꾸지 않는다(CRITICAL) — 스냅샷을 건드리지 않는다.
+ * 최초 완료를 커밋한 뒤 완료 수를 포함해 오늘 상태를 다시 계산한다.
  */
 @Service
 @EnableConfigurationProperties({RoutineProperties.class, JournalLockProperties.class})
@@ -38,6 +39,7 @@ public class RoutineSessionService {
 
     public enum Action { START, COMPLETE, SKIP }
 
+    private final ApplicationEventPublisher events;
     private final RoutineSessionRepository sessions;
     private final RoutineCatalogRepository catalog;
     private final RoutineRecommendationService recommendations;
@@ -50,7 +52,8 @@ public class RoutineSessionService {
     public RoutineSessionService(RoutineSessionRepository sessions, RoutineCatalogRepository catalog,
                                  RoutineRecommendationService recommendations, FatigueSnapshotRepository snapshots,
                                  AdvisoryLock locks, ServiceDates dates, RoutineProperties properties,
-                                 JournalLockProperties journalLock) {
+                                 JournalLockProperties journalLock, ApplicationEventPublisher events) {
+        this.events = events;
         this.sessions = sessions;
         this.catalog = catalog;
         this.recommendations = recommendations;
@@ -85,7 +88,11 @@ public class RoutineSessionService {
             case COMPLETE -> session.complete(now);
             case SKIP -> session.skip(now);
         }
-        return toResponse(sessions.saveAndFlush(session));
+        sessions.saveAndFlush(session);
+        if (action == Action.COMPLETE) {
+            events.publishEvent(new RoutineCompletedEvent(userId, today));
+        }
+        return toResponse(session);
     }
 
     public RoutinesTodayResponse today(Long userId) {

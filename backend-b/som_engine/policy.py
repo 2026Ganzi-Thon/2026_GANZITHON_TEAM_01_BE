@@ -1,5 +1,5 @@
 # TODO(DECISION): 기획·디자인 합의 전 피로도 수치와 문구는 MVP 초안이다.
-VERSION = "b-mvp-0.2"
+VERSION = "b-mvp-0.3"
 WEIGHTS = {"CHECKIN": 60, "SLEEP": 20, "CALENDAR": 15, "SCREEN_TIME": 5}
 MOOD_POINTS = {"CALM": 0, "OKAY": 15, "SO_SO": 35, "ANXIOUS": 65, "TIRED": 75}
 STRESSOR_POINTS = 5

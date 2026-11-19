@@ -60,7 +60,7 @@ class Phase3ScenarioTest {
     }
 
     @Test
-    void 시나리오3_체크인_인사_대화_카드수락_루틴4개_마음정리_털깎임_단계불변() throws Exception {
+    void 시나리오3_체크인_인사_대화_카드수락_루틴4개_마음정리_털깎임_단계감소() throws Exception {
         MockHttpSession s = ApiTestSupport.signupWithRequiredConsents(mockMvc, objectMapper, "sc301");
         assertThat(postJson(s, "/api/v1/checkins", "{\"mood\":\"TIRED\",\"stressors\":[\"WORK\"]}")
                 .getResponse().getStatus()).isEqualTo(201);
@@ -99,13 +99,17 @@ class Phase3ScenarioTest {
                 + "WHERE u.login_id = 'sc301'", Integer.class)).isEqualTo(4);
         assertThat(getJson(s, "/api/v1/routines/today").path("journalUnlocked").asBoolean()).isTrue();
 
+        JsonNode afterRoutines = getJson(s, "/api/v1/state/today");
+        assertThat(afterRoutines.path("level").asInt()).isEqualTo(1);
+        assertThat(afterRoutines.path("level").asInt()).isLessThan(before.path("level").asInt());
+
         assertThat(postJson(s, "/api/v1/journal", "{\"emotion\":\"TIRED\",\"text\":\"회의가 길었다\"}")
                 .getResponse().getStatus()).isEqualTo(201);
 
         JsonNode after = getJson(s, "/api/v1/state/today");
         assertThat(after.path("woolTrimmedToday").asBoolean()).isTrue();
-        assertThat(after.path("level").asInt()).isEqualTo(before.path("level").asInt());
-        assertThat(after.path("score").asInt()).isEqualTo(before.path("score").asInt());
+        assertThat(after.path("level").asInt()).isEqualTo(afterRoutines.path("level").asInt());
+        assertThat(after.path("score").asInt()).isEqualTo(afterRoutines.path("score").asInt());
     }
 
     @Test

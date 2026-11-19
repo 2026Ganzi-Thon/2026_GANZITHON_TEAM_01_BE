@@ -157,21 +157,30 @@ class RoutineSessionTest {
     }
 
     @Test
-    void 루틴_완료는_피로_스냅샷을_바꾸지_않는다() throws Exception {
+    void 루틴마다_하루_한번_레벨을_낮추고_재계산에도_유지한다() throws Exception {
         MockHttpSession s = ready("rts06");
-        mockMvc.perform(post("/api/v1/checkins").session(s).with(csrf()).contentType(MediaType.APPLICATION_JSON)
-                .content("{\"mood\":\"TIRED\"}")).andReturn();
-        Map<String, Object> before = jdbc.queryForMap("SELECT s.* FROM fatigue_snapshots s JOIN users u "
-                + "ON u.id = s.user_id WHERE u.login_id = 'rts06'");
-
-        for (String id : CATALOG) {
-            action(s, id, "complete");
+        MockHttpSession other = ready("rtslevelother");
+        String body = "{\"mood\":\"TIRED\",\"stressors\":[\"WORK\"]}";
+        for (var session : List.of(s, other)) {
+            mockMvc.perform(post("/api/v1/checkins").session(session).with(csrf())
+                    .contentType(MediaType.APPLICATION_JSON).content(body)).andReturn();
         }
-
-        Map<String, Object> after = jdbc.queryForMap("SELECT s.* FROM fatigue_snapshots s JOIN users u "
-                + "ON u.id = s.user_id WHERE u.login_id = 'rts06'");
-        assertThat(after).isEqualTo(before);
-        assertThat(today(s).path("level").asInt()).isEqualTo(((Number) before.get("level")).intValue());
+        int before = today(s).path("level").asInt();
+        assertThat(before).isGreaterThan(1);
+        action(s, "BREATHING", "complete");
+        int reduced = Math.max(1, before - 1);
+        assertThat(today(s).path("level").asInt()).isEqualTo(reduced);
+        action(s, "BREATHING", "complete");
+        assertThat(today(s).path("level").asInt()).isEqualTo(reduced);
+        assertThat(today(other).path("level").asInt()).isEqualTo(before);
+        mockMvc.perform(post("/api/v1/checkins").session(s).with(csrf())
+                .contentType(MediaType.APPLICATION_JSON).content(body)).andReturn();
+        assertThat(today(s).path("level").asInt()).isEqualTo(reduced);
+        var home = json(objectMapper, mockMvc.perform(get("/api/v1/state/today").session(s)).andReturn());
+        assertThat(home.path("level").asInt()).isEqualTo(reduced);
+        assertThat(home.path("assetKey").asText()).isEqualTo("sheep_level_" + reduced);
+        for (String id : CATALOG) action(s, id, "complete");
+        assertThat(today(s).path("level").asInt()).isEqualTo(1);
     }
 
     @Test

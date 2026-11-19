@@ -18,6 +18,8 @@ import com.som.engine.fatigue.FatigueResult;
 import com.som.engine.fatigue.SignalDay;
 import com.som.engine.fatigue.SignalInput;
 import com.som.state.domain.FatigueSnapshot;
+import com.som.routine.repository.RoutineSessionRepository;
+import com.som.routine.domain.RoutineSessionStatus;
 import com.som.state.repository.FatigueSnapshotRepository;
 import java.time.Clock;
 import java.time.LocalDate;
@@ -46,6 +48,7 @@ public class SnapshotService {
     private static final int MAX_ATTEMPTS = 3;
     static final int BASELINE_DAYS = 14;
 
+    private final RoutineSessionRepository routineSessions;
     private final UserRepository users;
     private final CheckinRepository checkins;
     private final SourceConsentChecker consents;
@@ -63,7 +66,8 @@ public class SnapshotService {
     public SnapshotService(UserRepository users, CheckinRepository checkins, SourceConsentChecker consents,
                            DailySignalRepository signals, FatigueSnapshotRepository snapshots, FatigueEngine engine,
                            EngineGateway gateway, AdvisoryLock locks, ServiceDates dates, Clock clock,
-                           ObjectMapper objectMapper, PlatformTransactionManager transactionManager) {
+                           ObjectMapper objectMapper, PlatformTransactionManager transactionManager, RoutineSessionRepository routineSessions) {
+        this.routineSessions = routineSessions;
         this.users = users;
         this.checkins = checkins;
         this.consents = consents;
@@ -125,7 +129,9 @@ public class SnapshotService {
             Set<String> consentedNames = consented.stream().map(Enum::name)
                     .collect(Collectors.toCollection(TreeSet::new));
             return new FatigueRequest(user.getSubjectKey(), localDate, clock.getZone(), checkin, signalInputs,
-                    consentedNames, history(userId, localDate, consented));
+                    consentedNames, history(userId, localDate, consented),
+                    (int) routineSessions.findByUserIdAndLocalDate(userId, localDate).stream()
+                            .filter(session -> session.getStatus() == RoutineSessionStatus.COMPLETED).count());
         }).orElse(null);
     }
 

@@ -131,7 +131,9 @@ def calculate(request: FatigueRequest) -> FatigueResult:
 
     total = sum(value * policy.WEIGHTS[source] for source, value in points.items())
     score = int(total / sum(policy.WEIGHTS[source] for source in points) + 0.5)
-    level = level_for(score)
+    level = max(1, level_for(score) - request.completedRoutines)
+    if level < level_for(score):
+        score = min(score, policy.LEVEL_THRESHOLDS[level - 1] - 1)
     wool, status_text, sub_text = policy.LEVEL_DISPLAY[level - 1]
     return FatigueResult(
         score=score, level=level, woolDisplayKg=wool, status="CALCULATED",

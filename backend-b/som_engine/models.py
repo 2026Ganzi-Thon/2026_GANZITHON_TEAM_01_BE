@@ -78,6 +78,7 @@ class Baseline(Payload):
 
 
 class FatigueRequest(Dated):
+    completedRoutines: int = Field(default=0, ge=0)
     timezone: Literal["Asia/Seoul"] = "Asia/Seoul"
     checkin: Checkin | None = None
     signals: list[Signal] = Field(default_factory=list, max_length=100)
