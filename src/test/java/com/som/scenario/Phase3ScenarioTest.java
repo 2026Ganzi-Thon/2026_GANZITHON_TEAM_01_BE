@@ -100,7 +100,7 @@ class Phase3ScenarioTest {
         assertThat(getJson(s, "/api/v1/routines/today").path("journalUnlocked").asBoolean()).isTrue();
 
         JsonNode afterRoutines = getJson(s, "/api/v1/state/today");
-        assertThat(afterRoutines.path("level").asInt()).isEqualTo(1);
+        assertThat(afterRoutines.path("level").asInt()).isEqualTo(Math.max(1, before.path("level").asInt() - 1));
         assertThat(afterRoutines.path("level").asInt()).isLessThan(before.path("level").asInt());
 
         assertThat(postJson(s, "/api/v1/journal", "{\"emotion\":\"TIRED\",\"text\":\"회의가 길었다\"}")

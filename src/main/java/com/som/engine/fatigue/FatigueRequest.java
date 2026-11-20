@@ -14,7 +14,14 @@ import java.util.Set;
  */
 public record FatigueRequest(String subjectKey, LocalDate localDate, ZoneId timezone, CheckinInput checkin,
                              List<SignalInput> signals, Set<String> consentedSources, List<SignalDay> recentSignals,
-                             @JsonInclude(JsonInclude.Include.NON_DEFAULT) int completedRoutines) {
+                             @JsonInclude(JsonInclude.Include.NON_DEFAULT) int completedRoutines,
+                             @JsonInclude(JsonInclude.Include.NON_DEFAULT) boolean allRoutinesCompleted) {
+    public FatigueRequest(String subjectKey, LocalDate localDate, ZoneId timezone, CheckinInput checkin,
+                          List<SignalInput> signals, Set<String> consentedSources, List<SignalDay> recentSignals,
+                          int completedRoutines) {
+        this(subjectKey, localDate, timezone, checkin, signals, consentedSources, recentSignals, completedRoutines, false);
+    }
+
     public FatigueRequest(String subjectKey, LocalDate localDate, ZoneId timezone, CheckinInput checkin,
                           List<SignalInput> signals, Set<String> consentedSources, List<SignalDay> recentSignals) {
         this(subjectKey, localDate, timezone, checkin, signals, consentedSources, recentSignals, 0);

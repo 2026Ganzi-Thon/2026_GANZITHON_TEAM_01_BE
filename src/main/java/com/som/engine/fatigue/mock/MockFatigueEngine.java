@@ -79,7 +79,7 @@ public class MockFatigueEngine implements FatigueEngine {
         }
         score = Math.min(score, 100);
 
-        int level = Math.max(1, levelOf(score) - request.completedRoutines());
+        int level = Math.max(1, levelOf(score) - (request.allRoutinesCompleted() ? 1 : 0));
         if (level < levelOf(score)) {
             score = Math.min(score, props.levelMinScores().get(level - 1) - 1);
         }

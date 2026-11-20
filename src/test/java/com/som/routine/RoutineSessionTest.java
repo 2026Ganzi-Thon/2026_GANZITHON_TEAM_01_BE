@@ -157,7 +157,7 @@ class RoutineSessionTest {
     }
 
     @Test
-    void 루틴마다_하루_한번_레벨을_낮추고_재계산에도_유지한다() throws Exception {
+    void 오늘_루틴_전체_완료시에만_한단계_감소하고_중복과_재계산에_유지한다() throws Exception {
         MockHttpSession s = ready("rts06");
         MockHttpSession other = ready("rtslevelother");
         String body = "{\"mood\":\"TIRED\",\"stressors\":[\"WORK\"]}";
@@ -167,10 +167,16 @@ class RoutineSessionTest {
         }
         int before = today(s).path("level").asInt();
         assertThat(before).isGreaterThan(1);
-        action(s, "BREATHING", "complete");
+        for (String id : CATALOG.subList(0, CATALOG.size() - 1)) {
+            action(s, id, "complete");
+            assertThat(today(s).path("level").asInt()).isEqualTo(before);
+        }
+        action(s, CATALOG.get(0), "complete");
+        assertThat(today(s).path("level").asInt()).isEqualTo(before);
+        action(s, CATALOG.get(CATALOG.size() - 1), "complete");
         int reduced = Math.max(1, before - 1);
         assertThat(today(s).path("level").asInt()).isEqualTo(reduced);
-        action(s, "BREATHING", "complete");
+        for (String id : CATALOG) action(s, id, "complete");
         assertThat(today(s).path("level").asInt()).isEqualTo(reduced);
         assertThat(today(other).path("level").asInt()).isEqualTo(before);
         mockMvc.perform(post("/api/v1/checkins").session(s).with(csrf())
@@ -179,8 +185,10 @@ class RoutineSessionTest {
         var home = json(objectMapper, mockMvc.perform(get("/api/v1/state/today").session(s)).andReturn());
         assertThat(home.path("level").asInt()).isEqualTo(reduced);
         assertThat(home.path("assetKey").asText()).isEqualTo("sheep_level_" + reduced);
-        for (String id : CATALOG) action(s, id, "complete");
-        assertThat(today(s).path("level").asInt()).isEqualTo(1);
+        clock.set("2026-11-12T05:00:00Z");
+        mockMvc.perform(post("/api/v1/checkins").session(s).with(csrf())
+                .contentType(MediaType.APPLICATION_JSON).content(body)).andReturn();
+        assertThat(today(s).path("level").asInt()).isEqualTo(before);
     }
 
     @Test

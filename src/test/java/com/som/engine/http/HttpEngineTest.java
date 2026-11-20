@@ -71,7 +71,7 @@ class HttpEngineTest {
                 {"subjectKey":"s-1","localDate":"2026-11-12","timezone":"Asia/Seoul",
                  "checkin":{"mood":"TIRED","stressors":["WORK"]},
                  "signals":[{"source":"SLEEP","metric":"SLEEP_MINUTES","value":420,"unit":"min"}],
-                 "consentedSources":["SLEEP"],"recentSignals":[],"completedRoutines":1}""", """
+                 "consentedSources":["SLEEP"],"recentSignals":[],"completedRoutines":4,"allRoutinesCompleted":true}""", """
                 {"score":68,"level":3,"woolDisplayKg":2.4,"status":"CALCULATED",
                  "statusText":"피로가 쌓였어요","subText":"잠시 쉬어갈 시간을 마련해봐요.",
                  "assetKey":"sheep_level_3","usedSources":["CHECKIN","SLEEP"],"baselineStatus":"PERSONAL",
@@ -83,7 +83,7 @@ class HttpEngineTest {
                         new SignalInput("SLEEP", "SLEEP_MINUTES", new BigDecimal("420"), null, "min", null),
                         new SignalInput("SLEEP", "SLEEP_ONSET", null,
                                 OffsetDateTime.parse("2026-11-12T01:00:00+09:00"), null, null)),
-                Set.of("SLEEP"), List.of(), 1));
+                Set.of("SLEEP"), List.of(), 4, true));
 
         server.verify();
         assertThat(result.status()).isEqualTo(FatigueStatus.CALCULATED);

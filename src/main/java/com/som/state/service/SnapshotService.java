@@ -19,6 +19,8 @@ import com.som.engine.fatigue.SignalDay;
 import com.som.engine.fatigue.SignalInput;
 import com.som.state.domain.FatigueSnapshot;
 import com.som.routine.repository.RoutineSessionRepository;
+import com.som.routine.repository.RoutineCatalogRepository;
+import com.som.routine.domain.RoutineSession;
 import com.som.routine.domain.RoutineSessionStatus;
 import com.som.state.repository.FatigueSnapshotRepository;
 import java.time.Clock;
@@ -49,6 +51,7 @@ public class SnapshotService {
     static final int BASELINE_DAYS = 14;
 
     private final RoutineSessionRepository routineSessions;
+    private final RoutineCatalogRepository routineCatalog;
     private final UserRepository users;
     private final CheckinRepository checkins;
     private final SourceConsentChecker consents;
@@ -66,8 +69,10 @@ public class SnapshotService {
     public SnapshotService(UserRepository users, CheckinRepository checkins, SourceConsentChecker consents,
                            DailySignalRepository signals, FatigueSnapshotRepository snapshots, FatigueEngine engine,
                            EngineGateway gateway, AdvisoryLock locks, ServiceDates dates, Clock clock,
-                           ObjectMapper objectMapper, PlatformTransactionManager transactionManager, RoutineSessionRepository routineSessions) {
+                           ObjectMapper objectMapper, PlatformTransactionManager transactionManager, RoutineSessionRepository routineSessions,
+                           RoutineCatalogRepository routineCatalog) {
         this.routineSessions = routineSessions;
+        this.routineCatalog = routineCatalog;
         this.users = users;
         this.checkins = checkins;
         this.consents = consents;
@@ -128,10 +133,15 @@ public class SnapshotService {
                     .map(SnapshotService::toInput).orElse(null);
             Set<String> consentedNames = consented.stream().map(Enum::name)
                     .collect(Collectors.toCollection(TreeSet::new));
+            Set<String> completedIds = routineSessions.findByUserIdAndLocalDate(userId, localDate).stream()
+                    .filter(session -> session.getStatus() == RoutineSessionStatus.COMPLETED)
+                    .map(RoutineSession::getRoutineId).collect(Collectors.toSet());
+            var catalog = routineCatalog.findAllByOrderByDisplayOrder();
+            boolean allCompleted = !catalog.isEmpty()
+                    && catalog.stream().allMatch(item -> completedIds.contains(item.getRoutineId()));
             return new FatigueRequest(user.getSubjectKey(), localDate, clock.getZone(), checkin, signalInputs,
                     consentedNames, history(userId, localDate, consented),
-                    (int) routineSessions.findByUserIdAndLocalDate(userId, localDate).stream()
-                            .filter(session -> session.getStatus() == RoutineSessionStatus.COMPLETED).count());
+                    completedIds.size(), allCompleted);
         }).orElse(null);
     }
 
